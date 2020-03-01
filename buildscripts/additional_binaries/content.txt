@@ -1,3 +1,0 @@
-skl_dmc_ver1_27.bin
-	firmware with performance fix for kvmgt
-	from: https://cgit.freedesktop.org/drm/drm-firmware/tree/i915
