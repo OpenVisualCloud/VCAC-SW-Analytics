@@ -1,7 +1,7 @@
 # Contents
 ## This branch contains:
-- Build script and patches to build host kernel/module/app (CentOS 7.4)
-- Build scripts to build OS images for VCAC-A card (Ubuntu 16.04).
+- Build script and patches to build host kernel/module/app (CentOS)
+- Build scripts to build OS images for VCAC-A card (Ubuntu).
 
 # Documents
 Get the Release Notes and Software Installation guide for how to setup the VCAC-A card from links below:
