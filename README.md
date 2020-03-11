@@ -1,6 +1,6 @@
 # Contents
 ## This branch contains:
-- Build script and patches to build host kernel/module/app (CentOS 7.4)
+- Build script and patches to build host kernel/module/app (CentOS 8.1/CentOS 7.x)
 - Build scripts to build OS images for VCAC-A card (Ubuntu 18.04).
 
 # Documents
@@ -19,37 +19,40 @@ Before being able to build and run docker, you will need install docker on your 
 ### Build kernel and driver module for host:   
 ```
 cd VCAC-SW/VCAC-A/Intel_Media_Analytics_Host/scripts/
-./build.sh
+./build.sh -o <centos7/centos8>
+	         centos7: build kernel and module for CentOS7.4 or CentOS7.6
+	         centos8: build kernel and module for CentOS8.1
 ```
 
 If the docker images used for compiling have been generated in an earlier execution, user can save time required to build them again by the following executions:
 ```
-./build.sh -s
+./build.sh -s -o <centos7/centos8>
 ```
 	
 ### Build system image to be loaded on VCAC-A card:
 ```
 cd VCAC-SW/VCAC-A/Intel_Media_Analytics_Node/scripts/
-run: vcad_build.sh -o <BASIC/FULL>  <options>
+run: vcad_build.sh -o <BASIC/FULL/EXTENDED>  <options>
 	         BASIC: basic OS image only with modules
 	         FULL: OS image with MSS/OpenVINO installed
+	         EXTENDED: installed binaries provides interfaces to mircrobenchmark tool
 ```
 	
 Check more options via 'vcad_build.sh -h', and below are some examples:
 
 - Skip downloading source code and dependencies, put the files under /PATH/TO/PACKAGE/cache, then pass "-c" flag:
 ```
-vcad_build.sh -o <BASIC/FULL>  -c
+vcad_build.sh -o <BASIC/FULL/EXTENDED>  -c
 ```
 
 - If the docker images used for compiling have been generated in an earlier execution, user can save time required to build them again by the following executions:
 ```
-vcad_build.sh -o <BASIC/FULL>  -s
+vcad_build.sh -o <BASIC/FULL/EXTENDED>  -s
 ```
 
 - The size of the vcad system image is set to 48GB by default. And the system image size is configurable through passing flag "-e" followed by the image size measured in GB
 ```
-vcad_build.sh -o <BASIC/FULL>  -e 24
+vcad_build.sh -o <BASIC/FULL/EXTENDED>  -e 24
 ```
  
 # Contributing

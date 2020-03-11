@@ -30,31 +30,24 @@ readonly TAR_DIR="${ROOT_DIR}/tar"
 readonly DEB_DIR="${ROOT_DIR}/deb"
 readonly DEFAULT_BUILD_DIR="${ROOT_DIR}/build"
 readonly DEFAULT_RUN_MODE="host"
+readonly DEFAULT_OS_VER="centos8"
 
-readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/centos7.4-kernel3.10.0-patch.tar.gz"
-readonly MODULES_PATCH_ARCHIVE="${TAR_DIR}/vcass-modules-3.10.0-patch.tar.gz"
-readonly DAEMON_PATCH_ARCHIVE="${TAR_DIR}/vca-apps-3.10.0-patch.tar.gz"
+readonly CENTOS7_KERNEL_PATCH_NAME="centos7.4-kernel3.10.0-patch.tar.gz"
+readonly CENTOS8_KERNEL_PATCH_NAME="centos8.1-kernel4.18.0-147-patch.tar.gz"
 
-readonly VCAA_DOCKER_NAME="vcaa/centos-7.4-test"
+readonly CENTOS7_MODULES_PATCH_NAME="vcass-modules-3.10.0-patch.tar.gz"
+readonly CENTOS8_MODULES_PATCH_NAME="vcass-modules-R4-patch.tar.gz"
+
+readonly CENTOS7_DAEMON_PATCH_NAME="vca-apps-3.10.0-patch.tar.gz"
+readonly CENTOS8_DAEMON_PATCH_NAME="vca-apps-4.18.0-147-patch.tar.gz"
+
+readonly CENTOS7_DOCKER_NAME="centos-7.4-test"
+readonly CENTOS8_DOCKER_NAME="centos-8.1-test"
 readonly VCAA_DOCKER_VERSION="1.0"
 
 readonly BOOST_VER="1.65.1"
 readonly BOOST_NAME="boost_1_65_1"
 readonly BOOST_LINK="https://dl.bintray.com/boostorg/release/${BOOST_VER}/source/${BOOST_NAME}.tar.gz"
-
-
-readonly KERNEL_VERSION="3.10.0"
-readonly KERNEL_SRC_NAME="linux-${KERNEL_VERSION}-693.17.1.el7"
-readonly KERNEL_SRC_NAME_FULL="kernel-${KERNEL_VERSION}-693.17.1.el7.src"
-readonly KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME_FULL}.rpm"
-readonly KERNEL_SRC_LINK="http://vault.centos.org/7.4.1708/updates/Source/SPackages/${KERNEL_SRC_ARCHIVE}"
-
-readonly VCA_SRC_ARCHIVE="VCAC-A_R2.tar.gz"
-readonly VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/VCAC-A_R2.tar.gz"
-readonly MODULES_SRC_NAME="vca_modules_2.3.26_src"
-readonly MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.tar.gz"
-readonly DAEMON_SRC_NAME="vca_apps_2.3.26_src"
-readonly DAEMON_SRC_ARCHIVE="${DAEMON_SRC_NAME}.tar.gz"
 
 readonly INITIAL_DEBUG_LEVEL=1
 
@@ -63,6 +56,7 @@ readonly DEFAULT_TASKS_TO_RUN="build,build_daemon"
 # Globals
 BUILD_DIR=${DEFAULT_BUILD_DIR}
 RUN_MODE="${DEFAULT_RUN_MODE}"
+OS_VER="${DEFAULT_OS_VER}"
 DOWNLOAD_USING_CACHE=0
 PARAM_HTTP_PROXY=
 PARAM_HTTPS_PROXY=
@@ -100,6 +94,7 @@ Options:
 -x, --http-proxy <http_proxy>	Set the http_proxy environment variable.
 -y, --https-proxy <https_proxy>	Set the https_proxy environment variable.
 -z, --no-proxy <no_proxy>	Set the no_proxy environment variable.
+-o, --os-ver select OS build environment <notice: only centos7 or centos8 >
 -h, --help	Show this help screen.
 "
 }
@@ -161,6 +156,9 @@ parse_parameters(){
 			-z|--no-proxy)
 				PARAM_NO_PROXY="${2:-}"
 				shift; shift;;
+                        -o|--os-ver)
+                                OS_VER="${2:-${DEFAULT_OS_VER}}"
+                                shift; shift;;
 			-h|--help)
 				show_help
 				exit 0;;
@@ -168,15 +166,18 @@ parse_parameters(){
 				show_help && die "Unknown parameter '$1'"
 		esac
 	done
-
-	debug ${INITIAL_DEBUG_LEVEL} "-- parse_parameters"
+        if [ "${OS_VER}" != "centos7" -a ${OS_VER} != "centos8" ];then
+              show_help
+              exit 0
+        fi
+        
+       	debug ${INITIAL_DEBUG_LEVEL} "-- parse_parameters"
 }
 
 check_parameters() {
 	debug ${DEBUG_LEVEL} "++ check_parameters ($@)"
 
 	[ -z "${BUILD_DIR}" ] && show_help && die "No build directory given"
-
 	debug ${DEBUG_LEVEL} "-- check_parameters"
 }
 
@@ -243,7 +244,7 @@ setup_env() {
 rm_docker_image() {
 	debug ${DEBUG_LEVEL} "++ rm_docker_image ($@)"
 
-	docker rmi -f ${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} || die "Failed to remove docker image, ${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION}"
+	docker rmi -f ${VCACA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} || die "Failed to remove docker image, ${VCACA_DOCKER_NAME}:${VCAA_DOCKER_VERSION}"
 
 	debug ${DEBUG_LEVEL} "-- rm_docker_image"
 }
@@ -252,13 +253,19 @@ build_docker() {
 	debug ${DEBUG_LEVEL} "++ build_docker ($@)"
 
 	# check if docker image already exists
-	local _DOCKER_IMAGE=`docker image ls ${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} --format "{{.ID}}: {{.Repository}} {{.Tag}}"`
+	local _DOCKER_IMAGE=`docker image ls ${VCACA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} --format "{{.ID}}: {{.Repository}} {{.Tag}}"`
 	[ -n "${_DOCKER_IMAGE}" ] && rm_docker_image
 
 	# create docker build context directory and copy Dockerfile
 	local _DOCKER_DIR="${BUILD_DIR}/docker"
 	_create_dir ${_DOCKER_DIR}
-	_copy "${SCRIPT_DIR}/Dockerfile" "${_DOCKER_DIR}/Dockerfile"
+        if [ ${OS_VER} == "centos8" ];then
+	 _copy "${SCRIPT_DIR}/Dockerfile_centos8" "${_DOCKER_DIR}/Dockerfile_centos8"
+        fi
+        if [ ${OS_VER} == "centos7" ];then
+         _copy "${SCRIPT_DIR}/Dockerfile_centos7" "${_DOCKER_DIR}/Dockerfile_centos7"
+        fi
+
 
 	# build docker image
 	local _PROXY_ARGS=""
@@ -271,8 +278,14 @@ build_docker() {
 	if [ -n "${PARAM_NO_PROXY}" ]; then
 		_PROXY_ARGS="${_PROXY_ARGS} --build-arg NO_PROXY=${PARAM_NO_PROXY}"
 	fi
+        if [ ${OS_VER} == "centos7" ];then
+            Dockerfile_name="Dockerfile_centos7"
+        fi
+        if [ ${OS_VER} == "centos8" ];then
+            Dockerfile_name="Dockerfile_centos8"
+        fi
 
-	docker build --no-cache ${_PROXY_ARGS} -t "${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION}" ${_DOCKER_DIR} || die "Failed to build docker image"
+	docker build -f ${_DOCKER_DIR}/${Dockerfile_name} --no-cache ${_PROXY_ARGS} -t "${VCACA_DOCKER_NAME}:${VCAA_DOCKER_VERSION}"  ${_DOCKER_DIR} || die "Failed to build docker image"
 
 	debug ${DEBUG_LEVEL} "-- build_docker"
 }
@@ -422,48 +435,81 @@ build_kernel_and_modules() {
 	# download and extract kernel source
 	[[ ! -f "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${KERNEL_SRC_LINK}" "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${KERNEL_SRC_ARCHIVE}"
 	[ ${NO_CLEAN} -eq 0 ] && _extract_rpm "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_KERNEL}"
-	[ ${NO_CLEAN} -eq 0 ] && _extract_xz "${_DOWNLOAD_DIR_KERNEL}/${KERNEL_SRC_NAME}.tar.xz" "${_KERNEL_DIR}"
-
+	if [ ${OS_VER} == "centos7" ];then
+		[ ${NO_CLEAN} -eq 0 ] && _extract_xz "${_DOWNLOAD_DIR_KERNEL}/${KERNEL_SRC_NAME}.tar.xz" "${_KERNEL_DIR}"
+	fi
+	if [ ${OS_VER} == "centos8" ];then
+		[ ${NO_CLEAN} -eq 0 ] && _extract_xz "${_DOWNLOAD_DIR_KERNEL}/linux-${KERNEL_SRC_NAME}.tar.xz" "${_KERNEL_DIR}"
+	fi
 	# apply kernel patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${KERNEL_PATCH_ARCHIVE}" "${_KERNEL_PATCH_DIR}"
-	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/${KERNEL_SRC_NAME}" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
-
+	if [ ${OS_VER} == "centos7" ];then
+		[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/${KERNEL_SRC_NAME}" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
+	fi
+	if [ ${OS_VER} == "centos8" ];then
+		[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/linux-${KERNEL_SRC_NAME}" "${_KERNEL_PATCH_DIR}" "linux-${KERNEL_SRC_NAME}"
+	fi
 	# download and extract modules source
 	[[ ! -f "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
-	#[ ${NO_CLEAN} -eq 0 ] && _extract_zip "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
-	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
-	[ ${NO_CLEAN} -eq 0 ] && cp -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R2/modules" "${_MODULES_DIR}/../"
+	if [ ${OS_VER} == "centos7" ];then
+		[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
+		[ ${NO_CLEAN} -eq 0 ] && cp -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R2/modules" "${_MODULES_DIR}/../"
+	fi
+	if [ ${OS_VER} == "centos8" ];then
+            [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
+            [ ${NO_CLEAN} -eq 0 ] && cp -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/modules" "${_MODULES_DIR}/../"
+            _copy ${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/patches/kernel-4.18.0/kernel-4.18.0-147.config ${_KERNEL_DIR}/linux-${KERNEL_SRC_NAME}/.config
 
+	fi
 	# apply modules patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${MODULES_PATCH_ARCHIVE}" "${_MODULES_PATCH_DIR}"
 	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_MODULES_DIR}" "${_MODULES_PATCH_DIR}" "${MODULES_SRC_NAME}"
-
 	# build kernel
 	rm -rf ${_HOST_PKG_DIR}/kernel*.rpm || die "Failed to remove previous kernel rpms"
 
-	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
+        if [ ${OS_VER} == "centos7" ];then
+
+	  _cd ${_KERNEL_DIR}/${KERNEL_SRC_NAME}
+        fi
+        if [ ${OS_VER} == "centos8" ];then
+          _cd ${_KERNEL_DIR}/linux-${KERNEL_SRC_NAME}
+        fi
 	local _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
-	make -j`nproc` rpm RPMVERSION=${_COMMIT_ID_KERNEL} || die "Failed to build kernel"
+        if [ ${OS_VER} == "centos7" ];then
+	  make -j`nproc` rpm RPMVERSION=${_COMMIT_ID_KERNEL} || die "Failed to build kernel"
+        fi
+        if [ ${OS_VER} == "centos8" ];then
+          make -j`nproc` rpm EXTRAVERSION=.${_COMMIT_ID_KERNEL}.VCA || die "Failed to build kernel"
+        fi
 
 	_copy /root/rpmbuild/SRPMS/kernel*.rpm ${_HOST_PKG_DIR}
 	_copy /root/rpmbuild/RPMS/x86_64/kernel*.rpm ${_HOST_PKG_DIR}
+        
+
 	rpm -ivh /root/rpmbuild/RPMS/x86_64/kernel-devel-*.rpm || die "Failed to install kernel devel rpm"
 
 	# build modules
 	rm -rf ${_HOST_PKG_DIR}/vcass-modules*.rpm || die "Failed to remove previous modules rpms"
-
-	_cd ${_MODULES_DIR}
+         _cd ${_MODULES_DIR}
 	local _COMMIT_ID_MODULES=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_MODULES}" ] && die "Failed to get modules commit id"
-    make -f make_rpm.mk KERNEL_SRC=/usr/src/kernels/${KERNEL_VERSION}-1.${_COMMIT_ID_KERNEL}.VCA+/ \
+        if [ ${OS_VER} == "centos8" ];then
+            local modules_build_script_path=${_MODULES_DIR}/generate_modules.sh
+            local kernel_devel_file_path=$(ls /root/rpmbuild/RPMS/x86_64/kernel-devel-*.rpm)
+            OS=CENTOS PKG_VER=${_COMMIT_ID_MODULES} LINUX_HEADERS_OR_KERNEL_DEVEL_PKG=${kernel_devel_file_path} ${modules_build_script_path} || die "Failed to build modules"
+            _copy ${_VCAA_KERNEL_DIR}/output/rpmbuild/SRPMS/vcass-modules*.rpm ${_HOST_PKG_DIR}
+            _copy ${_VCAA_KERNEL_DIR}/output/rpmbuild/RPMS/x86_64/vcass-modules*.rpm ${_HOST_PKG_DIR}
+        fi
+        if [ ${OS_VER} == "centos7" ];then
+              make -f make_rpm.mk KERNEL_SRC=/usr/src/kernels/${KERNEL_VERSION}-1.${_COMMIT_ID_KERNEL}.VCA+/ \
 		KERNEL_VERSION=${KERNEL_VERSION}-1.${_COMMIT_ID_KERNEL}.VCA+ \
 		KERNELRELEASE=${KERNEL_VERSION}-1.${_COMMIT_ID_KERNEL}.VCA+ RPMVERSION=1.${_COMMIT_ID_MODULES} \
 		|| die "Failed to build modules"
-
-	_copy /root/rpmbuild/SRPMS/vcass-modules*.rpm ${_HOST_PKG_DIR}
-	_copy /root/rpmbuild/RPMS/x86_64/vcass-modules*.rpm ${_HOST_PKG_DIR}
-
+        
+	      _copy /root/rpmbuild/SRPMS/vcass-modules*.rpm ${_HOST_PKG_DIR}
+	      _copy /root/rpmbuild/RPMS/x86_64/vcass-modules*.rpm ${_HOST_PKG_DIR}
+        fi
 	debug ${DEBUG_LEVEL} "-- build_kernel_and_modules"
 }
 
@@ -493,11 +539,61 @@ build_vcaa_daemon() {
 	[[ ! -f "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
 	 
 	_extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR}"
-	_cd ${_DOWNLOAD_DIR}/VCAC-SW-VCAC-A_R2/apps
-	BOOST_ROOT=${_DAEMON_DIR}/${BOOST_NAME} OS=CENTOS WORKSPACE=/tmp/tmp-test PKG_VER=2.7.3 MODULES_SRC=../modules/ ${_DOWNLOAD_DIR}/VCAC-SW-VCAC-A_R2/apps/generate_apps.sh
+        local APPS_DIR= 
+	
+	if [ ${OS_VER} == "centos7" ];then
+            APPS_DIR="VCAC-SW-VCAC-A_R2"
+	fi
+	if [ ${OS_VER} == "centos8" ];then
+           APPS_DIR="VCAC-SW-VCAC-A_R4"
+        fi
+        _cd ${_DOWNLOAD_DIR}/${APPS_DIR}/apps
+        BOOST_ROOT=${_DAEMON_DIR}/${BOOST_NAME} OS=CENTOS WORKSPACE=/tmp/tmp-test PKG_VER=2.7.3 MODULES_SRC=../modules/ ${_DOWNLOAD_DIR}/${APPS_DIR}/apps/generate_apps.sh
 	_copy /tmp/tmp-test/daemon-vca*.rpm ${_HOST_PKG_DIR}
-
 	debug ${DEBUG_LEVEL} "-- build_vcaa_daemon"
+}
+
+
+variable_define()
+{
+  if [ ${OS_VER} == "centos7" ];then
+           KERNEL_PATCH_ARCHIVE="${TAR_DIR}/CentOS7/${CENTOS7_KERNEL_PATCH_NAME}"
+           MODULES_PATCH_ARCHIVE="${TAR_DIR}/CentOS7/${CENTOS7_MODULES_PATCH_NAME}"
+           DAEMON_PATCH_ARCHIVE="${TAR_DIR}/CentOS7/${CENTOS7_DAEMON_PATCH_NAME}"
+           VCACA_DOCKER_NAME="vcaa/${CENTOS7_DOCKER_NAME}"
+	   KERNEL_VERSION="3.10.0"
+           KERNEL_SRC_NAME="linux-${KERNEL_VERSION}-693.17.1.el7"
+           KERNEL_SRC_NAME_FULL="kernel-${KERNEL_VERSION}-693.17.1.el7.src"
+           KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME_FULL}.rpm"
+           KERNEL_SRC_LINK="http://vault.centos.org/7.4.1708/updates/Source/SPackages/${KERNEL_SRC_ARCHIVE}"
+	   VCA_SRC_ARCHIVE="VCAC-A_R2.tar.gz"
+           VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/VCAC-A_R2.tar.gz"
+           MODULES_SRC_NAME="vca_modules_2.3.26_src"
+           MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.tar.gz"
+           DAEMON_SRC_NAME="vca_apps_2.3.26_src"
+           DAEMON_SRC_ARCHIVE="${DAEMON_SRC_NAME}.tar.gz"
+  fi
+  if [ ${OS_VER} == "centos8" ];then
+           KERNEL_PATCH_ARCHIVE="${TAR_DIR}/CentOS8/${CENTOS8_KERNEL_PATCH_NAME}"
+           MODULES_PATCH_ARCHIVE="${TAR_DIR}/CentOS8/${CENTOS8_MODULES_PATCH_NAME}"
+           DAEMON_PATCH_ARCHIVE="${TAR_DIR}/CentOS8/${CENTOS8_DAEMON_PATCH_NAME}"
+           VCACA_DOCKER_NAME="vcaa/${CENTOS8_DOCKER_NAME}"
+           KERNEL_VERSION="4.18.0"
+           KERNEL_SRC_NAME="${KERNEL_VERSION}-147.3.1.el8_1"
+           KERNEL_SRC_NAME_FULL="kernel-${KERNEL_VERSION}-147.3.1.el8_1.src"
+           KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME_FULL}.rpm"
+           KERNEL_SRC_LINK="http://vault.centos.org/8.1.1911/BaseOS/Source/SPackages/${KERNEL_SRC_ARCHIVE}"
+
+           VCA_SRC_ARCHIVE="VCAC-A_R4.tar.gz"
+           VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/${VCA_SRC_ARCHIVE}"
+           MODULES_SRC_NAME="vcass-modules-30.01.20-0"
+           MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.src.rpm"
+           DAEMON_SRC_NAME="vca_apps_26.02.20_src"
+           DAEMON_SRC_ARCHIVE="${DAEMON_SRC_NAME}.tar.gz"
+
+ fi
+
+
 }
 
 build() {
@@ -508,6 +604,7 @@ build() {
 
 	requirement_check
 	setup_env
+        variable_define
 
 	if [ "${RUN_MODE}" == "host" ]; then
 		if [ ${SKIP_DOCKER} -eq 0 ]; then
@@ -523,8 +620,8 @@ build() {
 		[ ${DOWNLOAD_USING_CACHE} -eq 1 ] && _PARAM_TO_DOCKER=" ${_PARAM_TO_DOCKER} -c "
 		docker run -t -u 0:0 -v /dev:/dev --privileged -w ${BUILD_DIR} \
 			-v ${PKG_ROOT_DIR}:${PKG_ROOT_DIR}:rw,z \
-			${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} ${ROOT_DIR}/scripts/build.sh \
-			-m docker ${_PARAM_TO_DOCKER}
+			${VCACA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} ${ROOT_DIR}/scripts/build.sh \
+			-m docker ${_PARAM_TO_DOCKER} -o ${OS_VER} 
 	elif [ "${RUN_MODE}" == "docker" ]; then
 		if [ -n "${TASKS_TO_RUN}" ]; then
 			local _TASKS=${TASKS_TO_RUN//,/ }
@@ -544,4 +641,5 @@ build() {
 
 stderr "Called as: $0 $*"
 build "$@" && stderr "Finished: $0 $*"
+
 

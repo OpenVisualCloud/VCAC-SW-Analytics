@@ -28,12 +28,17 @@ readonly ROOT_DIR="$(dirname ${SCRIPT_DIR})"
 readonly PKG_ROOT_DIR="$(dirname ${ROOT_DIR})"
 readonly CACHE_DIR="${PKG_ROOT_DIR}/cache"
 readonly TAR_DIR="${ROOT_DIR}/tar"
+readonly MODULES_TAR_DIR="${PKG_ROOT_DIR}/Intel_Media_Analytics_Host/tar/CentOS8"
 readonly DEB_DIR="${ROOT_DIR}/deb"
 readonly DEFAULT_BUILD_DIR="${ROOT_DIR}/build"
 readonly DEFAULT_RUN_MODE="host"
 readonly DEFAULT_SIZE=48
 
 readonly FFMPEG_NAME="FFmpeg"
+
+readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
+readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
+readonly BENCHMARK_COMMIT_ID="01ed5b808a6dd721e36e4a45946079500f32bc0c"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
@@ -42,21 +47,21 @@ readonly OPENVNO_DATE="2020.1.023"
 readonly OPENVNO_NAME="l_openvino_toolkit_p_$OPENVNO_DATE.tgz"
 readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16345/${OPENVNO_NAME}"
 
-readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel4.19.87_patch.tar.gz"
-readonly MODULES_PATCH_ARCHIVE="${TAR_DIR}/vcass-modules-4.19-patch.tar.gz"
+readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel4.19.97_patch.tar.gz"
+readonly MODULES_PATCH_ARCHIVE="${MODULES_TAR_DIR}/vcass-modules-R4-patch.tar.gz"
 
 readonly VCAA_DOCKER_NAME="vcaa/ubuntu-18.04-test"
 readonly VCAA_DOCKER_VERSION="1.0"
 
 readonly KERNEL_VERSION="4.19"
-readonly KERNEL_VER="4.19.87"
+readonly KERNEL_VER="4.19.97"
 readonly KERNEL_SRC_NAME="linux-${KERNEL_VER}"
-readonly KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME}.tar.gz"
-readonly KERNEL_SRC_LINK="https://mirrors.edge.kernel.org/pub/linux/kernel/v4.x/${KERNEL_SRC_ARCHIVE}"
+readonly KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME}.tar.xz"
+readonly KERNEL_SRC_LINK="https://cdn.kernel.org/pub/linux/kernel/v4.x/${KERNEL_SRC_ARCHIVE}"
 
-readonly VCA_SRC_ARCHIVE="VCAC-A_R2.tar.gz"
-readonly VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/VCAC-A_R2.tar.gz"
-readonly MODULES_SRC_NAME="vca_modules_2.3.26_src"
+readonly VCA_SRC_ARCHIVE="VCAC-A_R4.tar.gz"
+readonly VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/${VCA_SRC_ARCHIVE}"
+readonly MODULES_SRC_NAME="vca_modules_R4"
 readonly MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.tar.gz"
 
 readonly INITIAL_DEBUG_LEVEL=1
@@ -66,7 +71,7 @@ readonly MODULES_BUILD_SCRIPT_PATH="./generate_modules.sh"
 readonly DEFAULT_TASKS_TO_RUN="build,package,install"
 
 readonly ADDITONAL_BINARY_NAME="kbl_dmc_ver1_04.bin"
-readonly ADDITONAL_BINARY_LINK="https://cgit.freedesktop.org/drm/drm-firmware/tree/i915/${ADDITONAL_BINARY_NAME}"
+readonly ADDITONAL_BINARY_LINK="https://cgit.freedesktop.org/drm/drm-firmware/plain/i915/${ADDITONAL_BINARY_NAME}"
 
 readonly OPENCV_NAME="opencv_python-4.1.2.30-cp36-cp36m-manylinux1_x86_64.whl" 
 readonly OPENVN_LINK="https://files.pythonhosted.org/packages/c0/a9/9828dfaf93f40e190ebfb292141df6b7ea1a2d57b46263e757f52be8589f/${OPENCV_NAME}"
@@ -380,6 +385,10 @@ _apply_patch_git() {
 	git config user.email "foo@bar" || die "Failed to config git user email in ${_SRC_DIR}"
 	git add . || die "Failed to run git add command in ${_SRC_DIR}"
 	git commit -m "${_INITIAL_COMMIT}" || die "Failed to do initial commit in ${_SRC_DIR}"
+        if [ -f ${_PATCH_DIR}/kernel-4.19.97.patch ];then
+           git am ${_PATCH_DIR}/kernel-4.19.97.patch || die "Failed to apply patch under ${_PATCH_DIR} in ${_SRC_DIR}"
+           mv ${_PATCH_DIR}/kernel-4.19.97.patch ${_PATCH_DIR}/kernel-4.19.97
+        fi
 	git am ${_PATCH_DIR}/*.patch || die "Failed to apply patch under ${_PATCH_DIR} in ${_SRC_DIR}"
 	_cd -
 
@@ -431,9 +440,12 @@ build_kernel_and_modules() {
 
 	# download and extract kernel source
 	[[ ! -f "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${KERNEL_SRC_LINK}" "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${KERNEL_SRC_ARCHIVE}"
-	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${_KERNEL_DIR}"
-
-	# apply kernel patch
+        _copy "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${_KERNEL_DIR}"
+        _cd ${_KERNEL_DIR}
+        xz -d ${KERNEL_SRC_ARCHIVE}
+        tar xf ${KERNEL_SRC_NAME}.tar
+     
+	# apply local kernel patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${KERNEL_PATCH_ARCHIVE}" "${_KERNEL_PATCH_DIR}"
 	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/${KERNEL_SRC_NAME}" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
 
@@ -441,7 +453,7 @@ build_kernel_and_modules() {
 	[[ ! -f "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
 #	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR_VCA}/${MODULES_SRC_ARCHIVE}" "${_MODULES_DIR}"
-	[ ${NO_CLEAN} -eq 0 ] && _copy -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R2/modules" "${_MODULES_DIR}/../"
+	[ ${NO_CLEAN} -eq 0 ] && _copy -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/modules" "${_MODULES_DIR}/../"
 
 	# apply modules patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${MODULES_PATCH_ARCHIVE}" "${_MODULES_PATCH_DIR}"
@@ -457,7 +469,7 @@ build_kernel_and_modules() {
 	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
 	local _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
-        grep_config=`cat arch/x86/configs/x86_64_vcxa_defconfig |grep CONFIG_RETPOLINE=y`
+       grep_config=`cat arch/x86/configs/x86_64_vcxa_defconfig |grep CONFIG_RETPOLINE=y`
         if [ ${grep_config} == "" ];then
            echo "CONFIG_RETPOLINE=y" >> arch/x86/configs/x86_64_vcxa_defconfig
         fi
@@ -479,8 +491,8 @@ build_kernel_and_modules() {
 	_find_most_recent_kernel_devel "${_KERNEL_DIR}" "linux-headers-${KERNEL_VERSION}*_amd64.deb"
 	OS=UBUNTU PKG_VER=2.1.1 LINUX_HEADERS_OR_KERNEL_DEVEL_PKG=${KERNEL_HEADER_PKG} ${MODULES_BUILD_SCRIPT_PATH} || die "Failed to build modules"
 	rm -rf vca_mod || die "Failed to remove vca_mod dir"
-	dpkg -X ${_MODULES_DIR}/output/vcass-modules*_amd64.deb vca_mod || die "Failed to extract modules deb"
-	dpkg -e ${_MODULES_DIR}/output/vcass-modules*_amd64.deb vca_mod/DEBIAN/ || die "Failed to extract modules control info"
+	dpkg -X ${_VCAA_KERNEL_DIR}/output/vcass-modules*_amd64.deb vca_mod || die "Failed to extract modules deb"
+	dpkg -e ${_VCAA_KERNEL_DIR}/output/vcass-modules*_amd64.deb vca_mod/DEBIAN/ || die "Failed to extract modules control info"
 	rm -rf vca_mod/lib/modules/*/modules.* || die "Failed to remove modules files"
 	dpkg -b vca_mod ./ || die "Failed to build modules deb"
 
@@ -513,7 +525,7 @@ build_vcad() {
 			_copy "${_DEB_FILE}" "${_VCAD_REPKG_PATH}/$(basename ${_DEB_FILE})"
 		fi
 	done
-	for _DEB_FILE in ${_MODULES_OUTPUT_DIR}/*.deb; do
+	for _DEB_FILE in ${_MODULES_DIR}/*.deb; do
 		_copy "${_DEB_FILE}" "${_VCAD_REPKG_PATH}/$(basename ${_DEB_FILE})"
 	done
 
@@ -665,11 +677,26 @@ install_openvino()
    cd /opt/intel/openvino_2020.1.023/install_dependencies
    ./install_NEO_OCL_driver.sh
 }
+benchmark_install()
+{
+ cd /root/package
+ git clone ${BENCHMARK_DEB_LINK} 
+ cd VCAC-SW-Analytics
+ git reset --hard ${BENCHMARK_COMMIT_ID}
+ cp VCAC-A/Intel_Media_Analytics_Node/tar/${BENCHMARK_PKG} /opt/intel
+ cd /opt/intel 
+ dpkg -i ${BENCHMARK_PKG}
+ rm -rf ${BENCHMARK_PKG}
+ cd /opt/intel/vcaa/vcaa_agent
+ sed -i 's/__APPLY_ENV__/source \/opt\/intel\/openvino\/bin\/setupvars.sh source \/opt\/intel\/ddwo\/setvars.sh/g' run.sh
+ sed -i 's/__START_PARAM__/-gh 0.0.0.0 -gp 5000 -s \/root\/nfs -id 1/g' run.sh
+ 
+
+}
 if [ \$opt == "EXTENDED" ];then
    install_openvino
    install_mss
-   cd /root/package/deb
-   dpkg -i intel-vcaa-ddwo*.deb
+   benchmark_install
    install_ffmpeg
 fi
 if [ \$opt == "FULL" ];then
@@ -706,7 +733,7 @@ EOF
      cat > install_package_in_image.sh <<EOF
 
 #!/bin/bash
-apt update && apt -y install dbus
+apt update && apt -y install dbus tzdata
 mkdir -p /opt/intel/openvino/k8s-nfd/
 cd /opt/intel/openvino/k8s-nfd/
 echo "node.vcaa.nfd/vcaa_myriadx_nums=12" > nfd-vca-features

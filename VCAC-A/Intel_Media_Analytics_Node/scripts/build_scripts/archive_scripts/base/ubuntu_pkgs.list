@@ -27,6 +27,7 @@ rpcbind
 nfs-common
 netbase       # required by nfs-common despite lacking dependency
 firewalld
+systemd-sysv
 
 # utilities (may include ksh, traceroute, strace, ltrace...)
 vim
