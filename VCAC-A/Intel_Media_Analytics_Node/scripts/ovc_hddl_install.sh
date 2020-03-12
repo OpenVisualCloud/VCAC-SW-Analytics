@@ -2,10 +2,8 @@
 
 image_proxy="http://child-prc.intel.com:913"
 image_proxy_cmd="RUN echo 'Acquire::http::proxy "\"$image_proxy"\";Acquire::https::proxy "\"$image_proxy"\";' > /etc/apt/apt.conf;"
-openvino_name="l_openvino_toolkit_p_2019.3.334"
-ov_link="http://registrationcenter-download.intel.com/akdlm/irc_nas/15944/$openvino_name.tgz"
-py_ver='3.7.2'
-py_link="https://www.python.org/ftp/python/$py_ver/Python-$py_ver.tgz"
+openvino_name="l_openvino_toolkit_p_2020.1.023"
+ov_link="http://registrationcenter-download.intel.com/akdlm/irc_nas/16345/$openvino_name.tgz"
 pack_dir="$( cd "$(dirname "$0")" && pwd )"
 
 print_help()
@@ -39,7 +37,7 @@ parse_arg()
 install_depen()
 {
     export LC_ALL=C
-    apt-get update && apt-get install -y libjson-c2 cmake libelf-dev libpython2.7 libboost-filesystem1.58 nasm libboost-thread1.58 libboost-program-options1.58 libusb-dev cron python-pip build-essential curl wget libssl-dev ca-certificates git libboost-all-dev gcc-multilib g++-multilib libgtk2.0-dev pkg-config libpng12-dev libcairo2-dev libpango1.0-dev libglib2.0-dev libgstreamer0.10-dev libusb-1.0-0-dev i2c-tools libgstreamer-plugins-base1.0-dev libavformat-dev libavcodec-dev libswscale-dev libgstreamer1.0-dev libusb-1.0-0-dev i2c-tools libjson-c-dev usbutils ocl-icd-libopencl*  ocl-icd-opencl-dev libsm6-dbg/xenial libxrender-dev/xenial 
+    apt-get update && apt-get install -y libjson-c3 libboost-program-options1.65-dev libboost-thread1.65 libboost-filesystem1.65 libusb-dev cron python3-pip build-essential curl wget libssl-dev ca-certificates git libboost-all-dev gcc-multilib g++-multilib libgtk2.0-dev pkg-config libpng-dev libcairo2-dev libpango1.0-dev libglib2.0-dev libusb-1.0-0-dev i2c-tools libgstreamer-plugins-base1.0-dev libavformat-dev libavcodec-dev libswscale-dev libgstreamer1.0-dev  libusb-1.0-0-dev i2c-tools libjson-c-dev usbutils ocl-icd-libopencl*  ocl-icd-opencl-dev libsm-dev libxrender-dev libavfilter-dev tzdata
 
 }
 install_docker_engine()
@@ -48,26 +46,26 @@ install_docker_engine()
 	if [ $? != 0 ];then
 		echo "Installing docker......" 
 		echo "You can manually install docker, refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for detials....." 
-		apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+		apt update && apt-get install -y apt-transport-https ca-certificates curl gnupg-agent software-properties-common
 		if [ $? != 0 ];then
 			echo "[Error] Failed to install apt-transport-https ca-certificates curl gnupg-agent software-properties-common......" 
 			echo "You can manually install docker, refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for detials....." 
 			exit 1
 		fi
 		curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-		if [ $? !=0 ];then
+		if [ $? != 0 ];then
 			echo "[Error] Failed to add Docker’s official GPG key..." 
 			echo "You can manually install docker, refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for detials....." 
 			exit 1
 		fi
 		add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" 
-		if [ $? !=0 ];then
+		if [ $? != 0 ];then
 			echo "[Error] Failed to add repository..." 
 			echo "You can manually install docker, refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for detials....." 
 			exit 1
 		fi
-		apt-get install -y docker-ce docker-ce-cli containerd.io
-		if [ $? !=0 ];then
+		apt update && apt-get install -y docker-ce
+		if [ $? != 0 ];then
 			echo "[Error] Failed to install docker ce..." 
 			echo "You can manually install docker, refer to https://docs.docker.com/install/linux/docker-ce/ubuntu/ for detials....." 
 			exit 1
@@ -152,9 +150,9 @@ install_hddl_package()
 	docker cp  $container_id:/root/package/ov_ver.log $pack_dir
 	ov_ver=`cat $pack_dir/ov_ver.log`
 	rm -rf $pack_dir/ov_ver.log
-	mkdir -p /opt/intel/
 	tar zxf $pack_dir/intel-vcaa-hddl.tar.gz -C /opt/intel/
-	mv /opt/intel/openvino /opt/intel/$ov_ver
+	cd /opt/intel
+	mv intel-vcaa-hddl $ov_ver
 	cd /opt/intel/$ov_ver/deployment_tools/inference_engine/external/hddl/drivers/drv_ion 
 	make && make install
 	cd /opt/intel/$ov_ver/deployment_tools/inference_engine/external/hddl/drivers/drv_vsc 
@@ -164,27 +162,28 @@ install_hddl_package()
 gen_Dockerfile()
 {
 	cd $pack_dir
-	echo "FROM ubuntu:16.04" > Dockerfile
+	echo "FROM ubuntu:18.04" > Dockerfile
 	echo "$image_proxy_cmd" >> Dockerfile
-	echo "RUN apt-get update &&  apt-get install -y -q  apt-utils lsb-release vim net-tools bzip2 wget curl git gcc g++ automake libtool pkg-config autoconf make cmake cmake-curses-gui gcc-multilib g++-multilib libboost-dev libssl-dev build-essential" >> Dockerfile
+	echo 'RUN export http_proxy=$HTTP_PROXY' >> Dockerfile
+	echo 'RUN export https_proxy=$HTTP_PROXY' >> Dockerfile
+	echo 'RUN apt-get update && apt-get install -y tzdata && \' >> Dockerfile
+        echo '    echo "Asia/Shanghai" > /etc/timezone && \' >> Dockerfile
+	echo "    apt-get install -y -q  apt-utils lsb-release vim net-tools bzip2 wget curl git gcc g++ automake libtool pkg-config autoconf make cmake cmake-curses-gui gcc-multilib g++-multilib libboost-dev libssl-dev build-essential" >> Dockerfile
 	echo "RUN apt-get install -y  build-essential libncursesw5-dev libgdbm-dev libc6-dev zlib1g-dev libsqlite3-dev tk-dev libssl-dev openssl libffi-dev" >> Dockerfile
 	echo "RUN mkdir -p /root/package" >> Dockerfile
-	echo "RUN wget -P /root/package $py_link" >> Dockerfile
 	echo "RUN wget -P /root/package $ov_link" >> Dockerfile
 	
-	echo "#install python3.7" >> Dockerfile
-	echo "RUN cd /root/package && \\" >> Dockerfile
-	echo "  tar xzf Python-$py_ver.tgz && \\" >> Dockerfile
-	echo "  cd Python-$py_ver && \\" >> Dockerfile
-	echo "  ./configure && \\" >> Dockerfile
-	echo "  make && make install" >> Dockerfile
 	echo "#install openvino" >> Dockerfile
 	echo "RUN cd /root/package && \\" >> Dockerfile
 	echo "  tar xzf $openvino_name.tgz && \\" >> Dockerfile
 	echo "  apt-get install -y cpio && \\" >> Dockerfile
 	echo "  cd $openvino_name && \\" >> Dockerfile
+	echo "  ./install_openvino_dependencies.sh && \\" >> Dockerfile
 	echo "  sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/" silent.cfg && \\" >> Dockerfile
-	echo "  bash install.sh --ignore-signature --cli-mode -s silent.cfg" >> Dockerfile
+	echo "  bash install.sh --ignore-signature --cli-mode -s silent.cfg && \\" >> Dockerfile
+	echo "  cd /opt/intel/openvino_2020.1.023/install_dependencies && \\" >> Dockerfile
+        echo "  ./install_NEO_OCL_driver.sh" >> Dockerfile
+
 	echo "RUN cd /opt/intel/openvino/deployment_tools/tools/deployment_manager && \\" >> Dockerfile
 	echo "  python3 deployment_manager.py --targets=hddl --output_dir=/root/package --archive_name=intel-vcaa-hddl" >> Dockerfile
 	echo "RUN ls /opt/intel | grep  openvino_ > /root/package/ov_ver.log" >> Dockerfile
