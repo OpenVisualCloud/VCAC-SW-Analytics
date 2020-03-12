@@ -469,10 +469,6 @@ build_kernel_and_modules() {
 	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
 	local _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
-       grep_config=`cat arch/x86/configs/x86_64_vcxa_defconfig |grep CONFIG_RETPOLINE=y`
-        if [ ${grep_config} == "" ];then
-           echo "CONFIG_RETPOLINE=y" >> arch/x86/configs/x86_64_vcxa_defconfig
-        fi
 	make x86_64_vcxa_defconfig
 	OS="UBUNTU" PKGVERSION=${_COMMIT_ID_KERNEL} make -j`nproc` deb-pkg || die "Failed to build kernel"
 	dpkg -i ${_KERNEL_DIR}/linux-headers-*.deb || die "Failed to install kernel headers"
