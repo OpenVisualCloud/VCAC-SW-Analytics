@@ -38,7 +38,7 @@ readonly FFMPEG_NAME="FFmpeg"
 
 readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
 readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
-readonly BENCHMARK_COMMIT_ID="01ed5b808a6dd721e36e4a45946079500f32bc0c"
+readonly BENCHMARK_COMMIT_ID="7fd703db796c67d9404780926eb2c5038633be6c"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
@@ -684,7 +684,7 @@ benchmark_install()
  dpkg -i ${BENCHMARK_PKG}
  rm -rf ${BENCHMARK_PKG}
  cd /opt/intel/vcaa/vcaa_agent
- sed -i 's/__APPLY_ENV__/source \/opt\/intel\/openvino\/bin\/setupvars.sh source \/opt\/intel\/ddwo\/setvars.sh/g' run.sh
+ sed -i 's/__APPLY_ENV__/source \/opt\/intel\/openvino\/bin\/setupvars.sh \\n       source \/opt\/intel\/ddwo\/setvars.sh/g' run.sh
  sed -i 's/__START_PARAM__/-gh 0.0.0.0 -gp 5000 -s \/root\/nfs -id 1/g' run.sh
  
 
@@ -741,7 +741,7 @@ echo "node.vcaa.nfd/vcaa_hw_h265_codec=true" >> nfd-vca-features
 echo "node.vcaa.nfd/vcaa_hw_jpeg_codec=true" >> nfd-vca-features
 echo "node.vcaa.nfd/vcaa_gpu_freq_in_MHz=1150" >> nfd-vca-features
 echo "node.vcaa.nfd/vcaa_gpu_memory_in_MB=256" >> nfd-vca-features
-
+rm -rf /root/package
 
 EOF
        fi
