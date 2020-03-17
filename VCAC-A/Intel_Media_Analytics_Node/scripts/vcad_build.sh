@@ -567,6 +567,9 @@ install_vcad() {
 	mount -o loop,offset=$((616448 * 512)) vca_disk*.vcad ${_MOUNT_PATH} || die "Failed to mount vcad image"
 	mount --bind /dev ${_MOUNT_PATH}/dev/ || die "Failed to mount dev"
 	mount --bind /proc ${_MOUNT_PATH}/proc/ || die "Failed to mount proc"
+
+        #copy .config
+        _copy ${_MOUNT_PATH}/usr/src/linux-headers-${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/.config ${_MOUNT_PATH}/lib/modules/${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/config
         
 	# copy packages
 	_create_dir "${_ROOT_PKG_PATH}"
