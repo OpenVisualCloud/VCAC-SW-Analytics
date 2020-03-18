@@ -467,7 +467,7 @@ build_kernel_and_modules() {
          
 	# build kernel
 	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
-	local _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
+        _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
 	make x86_64_vcxa_defconfig
 	OS="UBUNTU" PKGVERSION=${_COMMIT_ID_KERNEL} make -j`nproc` deb-pkg || die "Failed to build kernel"
