@@ -736,6 +736,9 @@ EOF
 	
 
 	_cd "${_VCAD_INSTALL_PATH}"
+        typeset -l opt
+        opt=${SET_OPT}
+        mv vca_disk*.vcad vca_disk${SET_SIZE}_R4_k4.19_ubuntu18.04_1.0.1_${opt}.vcad
 	gzip -v vca_disk*.vcad || die "Failed to compress vcad archive"
 
 
