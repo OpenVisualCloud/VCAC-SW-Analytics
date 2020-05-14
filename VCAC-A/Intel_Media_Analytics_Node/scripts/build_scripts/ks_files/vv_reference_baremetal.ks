@@ -5,7 +5,7 @@ auth --useshadow --enablemd5
 selinux --disabled
 firewall --enabled --service=mdns
 xconfig --startxonboot
-part / --size 2500 --fstype ext4
+part / --size 3900 --fstype ext4
 services --enabled=network,sshd
 
 # root password
@@ -66,8 +66,8 @@ rsyslog        #dependency for GSS Proxy API
 
 # alternative globbing to encompass various kernel versions: kernel-?.*
 kernel-[0-9]*
-kernel-devel-[0-9]* 
-kernel-headers-[0-9]* 
+#kernel-devel-[0-9]*
+#kernel-headers-[0-9]*
 vcass-modules-[0-9]*
 
 # packages for mss

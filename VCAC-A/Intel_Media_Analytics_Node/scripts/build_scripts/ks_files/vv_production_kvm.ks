@@ -65,7 +65,7 @@ libvirt
 virt-install
 bridge-utils
 qemu-kvm
-edk2.git-ovmf-x64-0-*
+edk2.git-ovmf-x64-0-* # edk2 is needed for kvm to boot images with uefi bios
 edk2.git-0-*
 
 # packages from vca_extras_repo

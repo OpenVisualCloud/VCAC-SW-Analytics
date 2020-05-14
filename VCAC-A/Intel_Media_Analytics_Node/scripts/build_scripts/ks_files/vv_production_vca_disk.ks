@@ -27,37 +27,37 @@ lrzsz
 net-tools
 pciutils
 iptraf-ng
-tcpdump
-redhat-lsb-core
-vim
-mc
-wget
+#tcpdump
+#redhat-lsb-core
+vim-minimal
+#mc
+#wget
 mcelog
 openssh-server
 dhclient
 yum
 openssh-clients
 rpm
-nmap
+#nmap
 lsscsi
 lm_sensors
-sysstat
+#sysstat
 dos2unix
 libpciaccess
-libX11
-mesa-dri-drivers
-libXdamage
-libXext
-libXfixes
-libXxf86vm
-mesa-libGL
-mesa-libglapi
+#libX11
+#mesa-dri-drivers
+#libXdamage
+#libXext
+#libXfixes
+#libXxf86vm
+#mesa-libGL
+#mesa-libglapi
 grub2-efi
 grub2-tools
 grub2-efi-modules
 grub2
 nfs-utils
-rsyslog        #dependency for GSS Proxy API
+#rsyslog        #dependency for GSS Proxy API
 
 # kexec-tools.x86_64  commented out by AO 2018.01, CentOS 7.4
 
@@ -66,6 +66,8 @@ rsyslog        #dependency for GSS Proxy API
 # packages from vca_build_repo
 # alternative globbing to encompass various kerne  versions: kernel-?.*
 kernel-[0-9]*
+kernel-devel-[0-9]*
+kernel-headers-[0-9]*
 vcass-modules-[0-9]*
 
 %end

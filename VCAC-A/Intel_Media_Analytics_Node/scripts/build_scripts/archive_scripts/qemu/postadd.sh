@@ -48,7 +48,4 @@ do_chroot "${CHROOT_DIR}" /bin/bash << EOF || die "Could not configure operating
 			ifconfig vcabr0 mtu 9000 \|\| echo "Error during adding bridge"/' \
 			/etc/rc.local
 		chmod +x /etc/rc.local
-
-		# copying the Qemu Bios
-		cp -f "/${ARCHIVE_DIR}/${_CONST_CUSTOM_DIR}"/bios.bin /usr/bin/bios.bin
 EOF

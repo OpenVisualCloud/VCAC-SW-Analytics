@@ -24,12 +24,12 @@ readonly SCRIPT_DIR="$( cd "$(dirname "$0")" && pwd )"	# $0 works for more shell
 . "${SCRIPT_DIR}/library_image_creation.sh"
 
 ARCHIVE_FILES_OPTION_ARRAY=()
-BLOCKIO_DISK_SIZE_GB=50  # 2GB for STD, 3GB for MSS (boot partition + rootfs). Up to 50GB tested.
+BLOCKIO_DISK_SIZE_GB=24  # 2GB for STD, 3GB for MSS (boot partition + rootfs). Up to 50GB tested.
 BOOTSTRAP_FILE=""
 readonly CONST_BAK=.bak
 readonly CONST_DOMU_DISK_SIZE_MB=3072
-readonly CONST_EFI_SYSTEM_PARTITION_SIZE_MB=300
-readonly CONST_ROOTFS_PARTITION_SIZE_MB=3072	# keep below 4096 MB if using cpio from dracut; keep below 2.1GB for domU
+readonly CONST_EFI_SYSTEM_PARTITION_SIZE_MB=100
+readonly CONST_ROOTFS_PARTITION_SIZE_MB=3900	# keep below 4096 MB if using cpio from dracut; keep below 2.1GB for domU
 DESCRIPTION=""
 DRACUT_COMPRESSOR=""
 GRUB_CFG=""
@@ -175,7 +175,7 @@ populate_rootfs_partition(){
 		[[ "${_DEVICE}" == /dev/loop* ]] && _DEVICE="$( losetup --list | awk '$1~pattern { print $6 }' pattern="${_DEVICE}")"
 		sudo umount "${_PARTITION_IMAGE_DIR}"
 		sudo e2fsck -y -f "${_DEVICE}" >/dev/null 2>&1
-		sudo resize2fs "${_DEVICE}" 2500M
+		sudo resize2fs "${_DEVICE}" 3900M
 		sudo mount "${_DEVICE}" "${_PARTITION_IMAGE_DIR}"
 	fi
 
@@ -324,16 +324,17 @@ create_initramfs(){
 	local _DRACUT_STDOUT; _DRACUT_STDOUT="$(mktemp --tmpdir dracut_stdout.XXX )"
 	# TODO: test omitting additionally: aufs, bcache, btrfs, dm, lvm, mraid
 	# TODO: test omitting additionally for volatiles: resume, rootfs-block, shutdown
-	local _DRACUT_COMMON_EXCLUDED_MODULES="biosdevname bootchart btrfs busybox caps cifs crypt dm dmraid fcoe fcoe-uefi iscsi lvm mdraid multipath nbd plymouth" #modsign
+	local _DRACUT_COMMON_EXCLUDED_MODULES="biosdevname bootchart btrfs busybox caps cifs crypt dm dmsquash-live-ntfs dmraid fcoe fcoe-uefi iscsi lvm mdraid microcode_ctl-fw_dir_override multipath nbd plymouth " #modsign
 	local _DRACUT_ERROR_KEYWORDS="cannot\|could not\|ERROR\|Failed\|field width not sufficient for storing file size" # Not an error, it is about host not the image directory: "Kernel version 4.4.0-1.2.0.10.VCA has no module directory /lib/modules/4.4.0-1.2.0.10.VCA"
 	local _DRACUT_STATUS; _DRACUT_STATUS="$( mktemp --tmpdir dracut_status.XXX )"
+	local _DRACUT_EXCLUDED_ERRORS="microcode_ctl"
 	case "${IMAGE_TYPE}" in
 		domu)
 			dracut											\
 				--add-drivers "xen-blkfront ext4" 			\
 				--omit "${_DRACUT_COMMON_EXCLUDED_MODULES}"	\
 				--kmoddir "${_ROOTFS_PARTITION_DIR}"/lib/modules/"${KERNEL_VER}"	\
-				--early-microcode ${DRACUT_COMPRESSOR}		\
+				--no-early-microcode	${DRACUT_COMPRESSOR}		\
 				--no-hostonly								\
 				--force										\
 				"${_INITRAMFS_FILE}" 						\
@@ -363,7 +364,7 @@ create_initramfs(){
 				--install 'hostname awk cut grep xargs logger sysctl tail'						\
 				--prefix /vca															\
 				--kmoddir "${_ROOTFS_PARTITION_DIR}"/lib/modules/"${KERNEL_VER}"		\
-				--early-microcode ${DRACUT_COMPRESSOR}									\
+				--no-early-microcode	${DRACUT_COMPRESSOR}									\
 				--no-hostonly															\
 				--force 																\
 				"${_INITRAMFS_FILE}"													\
@@ -390,7 +391,7 @@ create_initramfs(){
 					--install 'hostname awk cut grep xargs logger sysctl tail'				\
 					--prefix /vca															\
 					--kmoddir "${_ROOTFS_PARTITION_DIR}"/lib/modules/"${KERNEL_VER}"		\
-					--early-microcode ${DRACUT_COMPRESSOR}									\
+					--no-early-microcode	${DRACUT_COMPRESSOR}									\
 					--no-hostonly															\
 					--force 																\
 					"${_INITRAMFS_FILE}"													\
@@ -414,7 +415,7 @@ create_initramfs(){
 					--add mountloopdev 							\
 					--include "${_ROOTFS_PARTITION_FILE}" /root/root_partition.img		\
 					--kmoddir "${_ROOTFS_PARTITION_DIR}"/lib/modules/"${KERNEL_VER}"	\
-					--early-microcode ${DRACUT_COMPRESSOR}		\
+					--no-early-microcode	${DRACUT_COMPRESSOR}		\
 					--no-hostonly								\
 					--force										\
 					"${_INITRAMFS_FILE}" 						\
@@ -441,7 +442,7 @@ create_initramfs(){
 			--install 'hostname awk cut grep xargs logger tail'						\
 			--prefix /vca										\
 			--kmoddir "${_ROOTFS_PARTITION_DIR}"/lib/modules/"${KERNEL_VER}"		\
-			--early-microcode ${DRACUT_COMPRESSOR}									\
+			--no-early-microcode	${DRACUT_COMPRESSOR}									\
 			--no-hostonly															\
 			--force 																\
 			"${_INITRAMFS_FILE}"													\
@@ -461,7 +462,7 @@ create_initramfs(){
 	/bin/rmdir "${_BACKUP_DIR}"
 
 	local _DRACUT_ERROR_FILE; _DRACUT_ERROR_FILE="$(mktemp --tmpdir dracut_errors.XXX )"
-	grep -i "${_DRACUT_ERROR_KEYWORDS}" "${_DRACUT_STDOUT}" > "${_DRACUT_ERROR_FILE}" && warn "Dracut failed with errors: $(cat "${_DRACUT_ERROR_FILE}")" && die "Dracut failed with the above errors"
+	grep -i "${_DRACUT_ERROR_KEYWORDS}" "${_DRACUT_STDOUT}" | grep -v "${_DRACUT_EXCLUDED_ERRORS}" > "${_DRACUT_ERROR_FILE}" && warn "Dracut failed with errors: $(cat "${_DRACUT_ERROR_FILE}")" && die "Dracut failed with the above errors"
 	_DRACUT_STATUS="$( cat "${_DRACUT_STATUS}" ; /bin/rm "${_DRACUT_STATUS}" )"
 	[ -n "${_DRACUT_STATUS}" ] && die "Dracut returned non-zero exit status (${_DRACUT_STATUS})"
 	/bin/rm "${_DRACUT_STDOUT}"
@@ -474,9 +475,9 @@ populate_boot_directory(){
 	local _ROOTFS_PARTITION_DIR="$2"
 	local _INITRAMFS_FILE="$3"
 
-	[ ! "${_ROOTFS_PARTITION_DIR}/boot" -ef "${_BOOT_DIR}" ] && cp "${_ROOTFS_PARTITION_DIR}"/boot/vmlinuz* "${_BOOT_DIR}"
-	[ "${IMAGE_TYPE}" == volatile-dom0 ] && cp "${_ROOTFS_PARTITION_DIR}"/boot/xen*.gz "${_BOOT_DIR}"
-	cp "${_INITRAMFS_FILE}" "${_BOOT_DIR}"/vca_initramfs.img
+	[ ! "${_ROOTFS_PARTITION_DIR}/boot" -ef "${_BOOT_DIR}" ] && fakeroot cp "${_ROOTFS_PARTITION_DIR}"/boot/vmlinuz* "${_BOOT_DIR}"
+	[ "${IMAGE_TYPE}" == volatile-dom0 ] && fakeroot cp "${_ROOTFS_PARTITION_DIR}"/boot/xen*.gz "${_BOOT_DIR}"
+	fakeroot cp "${_INITRAMFS_FILE}" "${_BOOT_DIR}"/vca_initramfs.img
 }
 
 # create and populate the boot partition in _BOOT_PARTITION_FILE
@@ -555,7 +556,7 @@ configfile (hd0,gpt1)/grub.cfg"
 		local _ROOTFS_DISK; _ROOTFS_DISK="$(grep -F " ${_ROOTFS_DIR} " /proc/mounts | awk '{ print $1 }' |  cut -dp -f-2 )" # using fgrep, as awk regex is cumbersome with slashes in the path. The cut cuts off the partition part of the path
 		do_chroot "${_ROOTFS_DIR}" "grub2-install ${_ROOTFS_DISK}" || die "Could not install the grub bootloader to ${_ROOTFS_DISK}"
 		# domu on CentOS uses .../grub2
-		sed -e s/VCA_KERNEL_VERSION/"${KERNEL_VER}"/g "${GRUB_CFG}" > "${_ROOTFS_DIR}"/boot/grub2/grub.cfg || die "Could not set kernel name ${KERNEL_VER} in ${_ROOTFS_DIR}/boot/grub2/grub.cfg"
+		sed -re "s/VCA_KERNEL_VERSION/${KERNEL_VER}/g;s/VCA_ADDITIONAL_GRUB_PARAMS/${VCA_ADDITIONAL_GRUB_PARAMS:=}/g;s/ +/ /g;s/^ /\t/" "${GRUB_CFG}" > "${_ROOTFS_DIR}"/boot/grub2/grub.cfg || die "Could not set kernel name ${KERNEL_VER} in ${_ROOTFS_DIR}/boot/grub2/grub.cfg"
 	else
 		mkdir -p "${_ROOTFS_DIR}"/boot/EFI/BOOT
 		# during boot, the standalone application consisting of *.mod files is in  (memdisk)/boot/grub/x86_64-efi/
@@ -568,7 +569,7 @@ configfile (hd0,gpt1)/grub.cfg"
 			which grub2-mkstandalone > /dev/null 2>&1 && GRUB_MKSTANDALONE=grub2-mkstandalone && GRUB_CFG_DIR=/boot/grub
 			\${GRUB_MKSTANDALONE} -d /usr/lib/grub/x86_64-efi/ -O x86_64-efi --fonts="unicode" -o /boot/EFI/BOOT/BOOTX64.EFI "\${GRUB_CFG_DIR}"/grub.cfg=/etc/grub.cfg
 EOF
-		sed -e s/VCA_KERNEL_VERSION/"${KERNEL_VER}"/g "${GRUB_CFG}" > "${_ROOTFS_DIR}"/boot/grub.cfg \
+		sed -re "s/VCA_KERNEL_VERSION/${KERNEL_VER}/g;s/VCA_ADDITIONAL_GRUB_PARAMS/${VCA_ADDITIONAL_GRUB_PARAMS:=}/g;s/ +/ /g;s/^ /\t/" "${GRUB_CFG}" > "${_ROOTFS_DIR}"/boot/grub.cfg \
 				|| die "Could not set kernel name ${KERNEL_VER} in ${_ROOTFS_DIR}/boot/grub.cfg"
 		# awk '/ {8}linux/ { printf "\t%s %s",$1,"${KERNEL_VER}" ; for(i=3 ; i<=NF; i++) printf " %s", $i ; printf "\n" }' grub.cfg
 

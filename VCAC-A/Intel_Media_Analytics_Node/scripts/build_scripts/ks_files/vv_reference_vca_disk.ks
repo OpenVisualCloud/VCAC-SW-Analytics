@@ -5,7 +5,7 @@ auth --useshadow --enablemd5
 selinux --disabled
 firewall --enabled --service=mdns
 xconfig --startxonboot
-part / --size 2500 --fstype ext4
+part / --size 2800 --fstype ext4
 services --enabled=network,sshd
 
 # root password

@@ -30,68 +30,70 @@ CHROOT_DIR="$1"		; shift
 
 MSS_INSTALL_DIR="${ARCHIVE_DIR}/${_CONST_CUSTOM_DIR}"
 CURR_KER_VER="$(cd "${CHROOT_DIR}"/lib/modules ; ls)" # there should only be one subdirectory in .../modules
-CURR_OS_VER="$(chroot "${CHROOT_DIR}" /usr/bin/lsb_release -rs)"
+#CURR_OS_VER="$(chroot "${CHROOT_DIR}" /usr/bin/lsb_release -rs)"
 
 # If needed, get the MSS verion from a file like: MssVersionFile_2017_16.5.2_PV3_<otherSymbols>_CENTOS.quickbuild | awk -F_ '{ printf("%s_%s_%s",$4, $5, $6)}'). Such file has to be added to every MSS_INSTALL_DIR
-case "${CURR_KER_VER}" in
-	3.10.0-693*)
-		FAKED_KER_VER="3.10.0-693.el7.x86_64"
-		FAKED_OS_VER="7.4.1708"
-	;;
-	4.4.*)	# the below is with the assumption that the kernel has been previously patched
-		FAKED_KER_VER="3.10.0-229.el7.x86_64"
-		FAKED_OS_VER="7.1.1503"
-	;;
-	*)	# do not fake anything; unbelievable
-		FAKED_KER_VER="${CURR_KER_VER}"
-		FAKED_OS_VER="${CURR_OS_VER}"
-	;;
-esac
+
 
 # Only needed when this script is not run on node; this is to placate dracut, also needed for 2018R1:
-ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}" || true
+#ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}" || true
 
-fakeDepmod "${CHROOT_DIR}" /usr "${FAKED_KER_VER}"
-fakeAndRegisterCommand "${CHROOT_DIR}"/usr/bin/yum <<< "exit 0" >/dev/null
-fakeUname "${CHROOT_DIR}" "${FAKED_KER_VER}"
-fakeLsb_release "${CHROOT_DIR}" CENTOS "${FAKED_OS_VER}"
+#fakeDepmod "${CHROOT_DIR}" /usr "${CURR_KER_VER}"
+#fakeAndRegisterCommand "${CHROOT_DIR}"/usr/bin/yum <<< "exit 0" >/dev/null
+#fakeUname / "${CURR_KER_VER}"
+#fakeLsb_release "${CHROOT_DIR}" CENTOS "${FAKED_OS_VER}"
 
 stderr "Configuring MSS in ${CHROOT_DIR}"
-do_chroot "${CHROOT_DIR}" /bin/bash << EOF || die "Could not configure operating environment in ${CHROOT_DIR}"
-	set -eu
-
+do_chroot "${CHROOT_DIR}" /bin/bash <<EOF || die "Could not configure operating environment in ${CHROOT_DIR}"
+	set -u
+	# this step is a common for all activities with super-archives
 	cd "/${MSS_INSTALL_DIR}"
-
-	case ${FAKED_KER_VER} in
-		3.10.0-229.el7.x86_64)
-			cd Generic
-			./install_media.sh <<< y > /dev/null
+	
+	# depends on kernel version, different steps may be required
+	case "${CURR_KER_VER}" in
+		3.10.0*)
+			rpm -Uvh libva-* intel-*
+			rpm -ivh kmod-ukmd-16.9-00189.el7.centos.x86_64.rpm
+			
+			unlink /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/drm.ko
+			unlink /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/drm_ukmd_compat.ko
+			unlink /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/drm_ukmd_kms_helper.ko
+			unlink /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/drm_ukmd.ko
+			unlink /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/i915.ko
+			
+			cp /lib/modules/3.10.0-693.17.1.el7.x86_64/extra/ukmd/* /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/
+			
+			#cd /lib/modules/"${CURR_KER_VER}"/weak-updates/ukmd/
+			#ln -s /lib/modules/"${CURR_KER_VER}"/extra/ukmd/drm.ko drm.ko
+			#ln -s /lib/modules/"${CURR_KER_VER}"/extra/ukmd/drm_ukmd_compat.ko drm_ukmd_compat.ko
+			#ln -s /lib/modules/"${CURR_KER_VER}"/extra/ukmd/drm_ukmd_kms_helper.ko drm_ukmd_kms_helper.ko
+			#ln -s /lib/modules/"${CURR_KER_VER}"/extra/ukmd/drm_ukmd.ko drm_ukmd.ko
+			#ln -s /lib/modules/"${CURR_KER_VER}"/extra/ukmd/i915.ko i915.ko
+			
+			depmod -a "${CURR_KER_VER}"
+			
+			rm -fr /lib/modules/3.10.0-693.17.1.el7.x86_64
 		;;
-		3.10.0-693.el7.x86_64)	# CentOS 7.4, MSS2018R1
-
-			ln -s /usr/src/kernels/"${CURR_KER_VER}" /usr/src/kernels/"${FAKED_KER_VER}"
-
-			rpmbuild --rebuild ukmd-kmod-??.?-?????.el7.centos.src.rpm > /dev/null 2>&1 # ukmd-kmod-16.8-69021.el7.centos.src.rpm
-			cp /root/rpmbuild/RPMS/x86_64/kmod-ukmd-??.?-?????.el7.centos.x86_64.rpm . # kmod-ukmd-16.8-69021.el7.centos.x86_64.rpm
-
-			tar xzf install_scripts_centos_??.?-?????.tar.gz	# install_scripts_centos_16.8-69021.tar.gz
-			./install_sdk_CentOS.sh <<< "1" # to select the option to use mss-specific repository configuration
-
-			/bin/rm /usr/src/kernels/"${FAKED_KER_VER}"
+		4.14.20*)
+			# below installation script has been changed (install_media.sh) separately in provided "MSS_INSTALL_DIR" directory
+			# changes I made:
+			# 		extended if-else to use VCA kernel (originally, only one can pass script validation) as well
+			# 		all "yes" questions will automatically selected to not stop the script and wait for input
+			# this method should work for next MSS releases as well
+			./install_media.sh
+			rpm -i intel-opencl-16.9-*.x86_64.rpm
 		;;
 		*)
-			export OS=CENTOS	# referenced in makefiles
-			./install.sh <<< "y" >/dev/null	# "yes" to "install firmwares for SKL?"
-		;;
+			die "Unsupported kernel (${CURR_KER_VER})"
 	esac
 EOF
 
 # cleanup after UKMD rpmbuild:
 /bin/rm -fr "${CHROOT_DIR}"/root/rpmbuild 2>/dev/null || true
 
-removeIfSymlink "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}"
+#removeIfSymlink "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}"
 
-restoreFakedRegisteredCommands LASTONLY	# restore lsb_release
-restoreFakedRegisteredCommands LASTONLY	# restore uname
-restoreFakedRegisteredCommands LASTONLY	# restore yum
-unFakeDepmod "${CHROOT_DIR}" /usr
+#restoreFakedRegisteredCommands LASTONLY	# restore lsb_release
+#restoreFakedRegisteredCommands LASTONLY	# restore uname
+#restoreFakedRegisteredCommands LASTONLY	# restore yum
+#unFakeDepmod "${CHROOT_DIR}" /usr

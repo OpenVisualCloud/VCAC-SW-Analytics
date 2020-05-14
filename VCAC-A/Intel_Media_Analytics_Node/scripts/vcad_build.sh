@@ -38,14 +38,15 @@ readonly FFMPEG_NAME="FFmpeg"
 
 readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
 readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
-readonly BENCHMARK_COMMIT_ID="7fd703db796c67d9404780926eb2c5038633be6c"
+readonly BENCHMARK_COMMIT_ID="644d35e532632f8707440510eff5a00503d42959"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
 
-readonly OPENVNO_DATE="2020.1.023"
+readonly OPENVNO_DATE="2020.2.120"
 readonly OPENVNO_NAME="l_openvino_toolkit_p_$OPENVNO_DATE.tgz"
-readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16345/${OPENVNO_NAME}"
+readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16612/${OPENVNO_NAME}"
+#http://registrationcenter-download.intel.com/akdlm/irc_nas/16612/l_openvino_toolkit_p_2020.2.120.tgz 
 
 readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel4.19.97_patch.tar.gz"
 readonly MODULES_PATCH_ARCHIVE="${MODULES_TAR_DIR}/vcass-modules-R4-patch.tar.gz"
@@ -126,7 +127,44 @@ Options:
 -h, --help	Show this help screen.
 "
 }
+cfg_read()
+{
+ source ${cfg_path}
+ gva_install=$GVA_INSTALL
+ if [ ! "${gva_install}" ];then
+  echo "error: please choose the right silent.cfg"
+  exit
+ 
+ fi
+ if [ ${gva_install} == "yes" ];then
+    streamer_install=1
+ fi
+ if [ ${gva_install} == "no" ];then
+    streamer_install=0
+ fi
 
+}
+
+dl_streamer_install_yes_or_no()
+{
+read -p "Notice: DL (Deep Learning) Streamer (GStreamer* Video Analytics Plugin, GVA) is included in OpenVINO 2020.2. DL Streamer will take about 300M disk space.
+           Choose yes/y or no/n to select to install DL Streamer or not:" streamer_flage
+  if [ ${streamer_flage} == "yes" -o ${streamer_flage} == "y" ];then
+   
+      streamer_install=1 
+
+  fi
+  if [ ${streamer_flage} == "no" -o ${streamer_flage} == "n" ];then
+
+      streamer_install=0
+
+  fi
+  if [ ${streamer_flage} != "yes" -a ${streamer_flage} != "y" -a ${streamer_flage} != "no" -a ${streamer_flage} != "n" ];then
+      echo "wrong parameter please type yes/y to install no/n not to install"
+      exit
+  fi
+
+}
 parse_parameters(){
 	debug ${INITIAL_DEBUG_LEVEL} "++ parse_parameters ($@)"
 
@@ -165,12 +203,18 @@ parse_parameters(){
 			-z|--no-proxy)
 				PARAM_NO_PROXY="${2:-}"
 				shift; shift;;
-            -e|--size)
+                        -e|--size)
 			    SET_SIZE="${2:-${DEFAULT_SIZE}}"
 				shift; shift;;
 			-o|--opt)
 			    SET_OPT="${2:-}"
-				shift; shift;;			
+				shift; shift;;
+                        -f|--flag)
+                            streamer_install="${2:-}"
+                                shift; shift;;
+			-l|--silent)
+                            cfg_path="${2:-}"
+                                shift; shift;;
 			-h|--help)
 				show_help
 				exit 0;;
@@ -564,13 +608,13 @@ install_vcad() {
 	_cd "${_VCAD_INSTALL_PATH}"
 	gzip -d -v vca_disk*.gz || die "Failed to extract vcad archive"
 	notice "extracting base vcad image..."
-	mount -o loop,offset=$((616448 * 512)) vca_disk*.vcad ${_MOUNT_PATH} || die "Failed to mount vcad image"
+	mount -o loop,offset=$((206848 * 512)) vca_disk*.vcad ${_MOUNT_PATH} || die "Failed to mount vcad image"
 	mount --bind /dev ${_MOUNT_PATH}/dev/ || die "Failed to mount dev"
 	mount --bind /proc ${_MOUNT_PATH}/proc/ || die "Failed to mount proc"
 
         #copy .config
         _copy ${_MOUNT_PATH}/usr/src/linux-headers-${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/.config ${_MOUNT_PATH}/lib/modules/${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/config
-        
+
 	# copy packages
 	_create_dir "${_ROOT_PKG_PATH}"
 	for _PKG_FILE in ${ROOT_DIR}/* ; do
@@ -593,6 +637,7 @@ install_vcad() {
 		#download openvino
 		_download "${OPENVNO_LINK}" "${_DOWNLOAD_DIR}/${OPENVNO_NAME}" "${OPENVNO_NAME}"
 		_copy "${_DOWNLOAD_DIR}/${OPENVNO_NAME}" "${_ROOT_PKG_PATH}/${OPENVNO_NAME}"
+                _copy "${TAR_DIR}/intel-vpu-metric-ubuntu18.04-amd64.deb" "${_ROOT_PKG_PATH}"
 	fi
 	if [ ${SET_OPT} == "FULL" -o ${SET_OPT} == "IPS" -o ${SET_OPT} == "EXTENDED" ];then
 		#Download mss_ocl
@@ -614,7 +659,7 @@ install_vcad() {
 #!/bin/bash
 opt=${SET_OPT}
 export LC_ALL=C
-apt-get update && apt-get install -y libjson-c3 libboost-program-options1.65-dev libboost-thread1.65 libboost-filesystem1.65 libusb-dev cron python3-pip build-essential curl wget libssl-dev ca-certificates git libboost-all-dev gcc-multilib g++-multilib libgtk2.0-dev pkg-config libpng-dev libcairo2-dev libpango1.0-dev libglib2.0-dev libusb-1.0-0-dev i2c-tools libgstreamer-plugins-base1.0-dev libavformat-dev libavcodec-dev libswscale-dev libgstreamer1.0-dev  libusb-1.0-0-dev i2c-tools libjson-c-dev usbutils ocl-icd-libopencl*  ocl-icd-opencl-dev libsm-dev libxrender-dev libavfilter-dev tzdata
+apt update && apt install -y libjson-c3 libboost-program-options1.65-dev libboost-thread1.65 libboost-filesystem1.65 libusb-dev cron python3-pip build-essential curl wget libssl-dev ca-certificates git libboost-all-dev gcc-multilib g++-multilib libgtk2.0-dev pkg-config libpng-dev libcairo2-dev libpango1.0-dev libglib2.0-dev libusb-1.0-0-dev i2c-tools libgstreamer-plugins-base1.0-dev libavformat-dev libavcodec-dev libswscale-dev libgstreamer1.0-dev  libusb-1.0-0-dev i2c-tools libjson-c-dev usbutils ocl-icd-libopencl*  ocl-icd-opencl-dev libsm-dev libxrender-dev libavfilter-dev tzdata cpio libgtk-3-dev
 
 rm -rf /usr/bin/python && cd /usr/bin && ln -s python3.6 python
 
@@ -659,22 +704,51 @@ fi
 #install openvino
 install_openvino()
 {
+   update_apt_repo
    rm -rf /opt/
    cd /root/package
    tar -zxf ${OPENVNO_NAME}
-   cd l_openvino_toolkit_p_2020.1.023
+#   cd l_openvino_toolkit_p_2020.1.023
+   cd l_openvino_toolkit_p_$OPENVNO_DATE
+#   sed -i "s/libfaac0/#libfaac0/" install_openvino_dependencies.sh
+#   sed -i "s/libfdk-aac1/#libfdk-aac1/" install_openvino_dependencies.sh
    ./install_openvino_dependencies.sh
    accept_eula=\`cat silent.cfg |grep ACCEPT_EULA=\`
    accept_eula_name=\${accept_eula#*=}
    if [ "\$accept_eula_name" != "accept" ];then
       sed -i "s/\$accept_eula/ACCEPT_EULA=accept/" silent.cfg
-      if [ \$? != 0 ];then
-         echo "[Error] fail to set the value of accept_eula to accept " 
-      fi
    fi
+   streamer_install=${streamer_install}
+   if [ \${streamer_install} == 0 ];then
+   sed -i "s/=DEFAULTS/=intel-openvino-ie-sdk-ubuntu-bionic__x86_64;intel-openvino-ie-rt-cpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-vpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gna-ubuntu-bionic__x86_64;intel-openvino-ie-rt-hddl-ubuntu-bionic__x86_64;intel-openvino-model-optimizer__x86_64;intel-openvino-dl-workbench__x86_64;intel-openvino-opencv-lib-ubuntu-bionic__x86_64;intel-openvino-omz-dev__x86_64;intel-openvino-opencv-etc__noarch/" silent.cfg
+   
+   streamer_value1=\`sed -n -e "1407p" pset/mediaconfig.xml\`
+   streamer_value1_=\${streamer_value1/'mandatory="1"'/'mandatory="0"'}
+   sed -i "1407c\${streamer_value1_}" pset/mediaconfig.xml
+   streamer_value2=\`sed -n -e "1275p" pset/mediaconfig.xml\`
+   streamer_value2_=\${streamer_value2/'mandatory="1"'/'mandatory="0"'}
+   sed -i "1275c\${streamer_value2_}" pset/mediaconfig.xml
+   fi
+ 
    bash install.sh --ignore-signature --cli-mode -s silent.cfg
-   cd /opt/intel/openvino_2020.1.023/install_dependencies
+   cd /opt/intel/openvino_$OPENVNO_DATE/install_dependencies
    ./install_NEO_OCL_driver.sh
+}
+update_apt_repo()
+{
+ git clone ${BENCHMARK_DEB_LINK}
+ cd VCAC-SW-Analytics
+ cp VCAC-A/Intel_Media_Analytics_Node/tar/sources.list /etc/apt/sources.list
+}
+metric_install()
+{
+ cd /root/package
+ dpkg -i intel-vpu-metric-ubuntu18.04-amd64.deb
+ cd /opt/intel/vcaa/vpu_metric
+ sed -i 's/__APPLY_ENV__/source \/opt\/intel\/openvino\/bin\/setupvars.sh \&\& mkdir \/tmp\/node-exporter/g' run.sh
+ sed -i 's/__START_PARAM__/-d \/tmp\/node-exporter/g' run.sh
+ apt install -y lockfile-progs
+ mkdir -p /tmp/node-exporter/
 }
 benchmark_install()
 {
@@ -697,10 +771,12 @@ if [ \$opt == "EXTENDED" ];then
    install_mss
    benchmark_install
    install_ffmpeg
+   metric_install
 fi
 if [ \$opt == "FULL" ];then
    install_openvino
    install_mss
+   metric_install
 fi
 #NFD
 gen_nfd_file()
@@ -770,10 +846,24 @@ EOF
 
 vcad_build() {
 	debug ${INITIAL_DEBUG_LEVEL} "++ vcad_build ($@)"
-
+        cfg_path= 
 	parse_parameters "$@"
 	check_parameters
+       
+        if [ ${RUN_MODE} == "host" ];then
 
+        if [ ! "${cfg_path}" ];then
+
+            if [ ${SET_OPT} != "BASIC" ];then
+                dl_streamer_install_yes_or_no
+            fi
+
+        else
+          if [ ${SET_OPT} != "BASIC" ];then
+           cfg_read
+          fi
+        fi
+        fi
 	requirement_check
 	setup_env
 
@@ -798,7 +888,7 @@ vcad_build() {
 		docker run -t -u 0:0 -v /dev:/dev --privileged -w ${BUILD_DIR} \
 			-v ${PKG_ROOT_DIR}:${PKG_ROOT_DIR}:rw,z \
 			${VCAA_DOCKER_NAME}:${VCAA_DOCKER_VERSION} ${ROOT_DIR}/scripts/vcad_build.sh \
-			-m docker ${_PARAM_TO_DOCKER} -e ${SET_SIZE} -o ${SET_OPT} 
+			-m docker ${_PARAM_TO_DOCKER} -e ${SET_SIZE} -o ${SET_OPT} -f ${streamer_install} 
 	elif [ "${RUN_MODE}" == "docker" ]; then
 		if [ -n "${TASKS_TO_RUN}" ]; then
 			local _TASKS=${TASKS_TO_RUN//,/ }

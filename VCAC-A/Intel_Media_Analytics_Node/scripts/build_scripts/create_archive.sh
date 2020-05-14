@@ -180,7 +180,7 @@ get_packages(){
 	shift
 	local _PKG_LIST=("${@}")
 
-	local _HARMLESS="^Get:\|^Hit:\|^Preparing to unpack \|^Unpacking \|^Processing triggers for \|^Setting up \|^Selecting previously unselected package\|^(Reading database ... \|^E: Getting name for slave of master fd \|^W: Can't drop privileges for downloading "
+	local _HARMLESS="^Get:\|^Hit:\|^Preparing to unpack \|^Unpacking \|^Processing triggers for \|^Setting up \|^Selecting previously unselected package\|^(Reading database ... \|^E: Getting name for slave of master fd \|^W: Can't drop privileges for downloading \|^W: Download is performed unsandboxed as root as file "
 	# to avoid the message: "debconf: delaying package configuration, since apt-utils is not installed"
 	add_packages "${_CHROOT_DIR}" \
 				"${_HARMLESS}"	\
@@ -205,7 +205,7 @@ create_UBUNTU_bootstrap(){
 	local _VARIANT="minbase"
 	# Consider getting the newest debootstrap from http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/?C=M;O=D  + ar  debootstrap_1.0.*_all.deb + tar xf data.tar.gz.
 	# Calling debootstrap requires root privileges. Consider fakeroot fakeroot /polystrap: https://unix.stackexchange.com/a/214830
-	debootstrap --arch=amd64 --variant "${_VARIANT}" "${_CODENAME}" "${_CHROOT_DIR}" http://archive.ubuntu.com/ubuntu/ || die "Could not create Ubuntu bootstrap archive"
+	${_CONST_SUDO} debootstrap --arch=amd64  --variant "${_VARIANT}" "${_CODENAME}" "${_CHROOT_DIR}" http://archive.ubuntu.com/ubuntu/ || die "Could not create Ubuntu bootstrap archive"
 }
 
 # returns path to the _IMG_CREATOR_ROOTFS_IMG image on which _CHROOT_DIR is mounted
@@ -259,8 +259,9 @@ create_archive(){
 		# Only create CHROOT_DIR directory if not yet given. This creation only makes sense for Ubuntu (CentOS is centered on image), allowing the populated CHROOT_DIR rootfs directory to be the by-product of archive creation:
 		local _CHROOT_DIR_DEFINED="${CHROOT_DIR}" # non-empty means CHROOT_DIR was defined
 		_CHROOT_DIR_PARENT="${CHROOT_DIR:-$(mktemp --directory --tmpdir root_dir.XXX)}"
+		${_CONST_SUDO} chmod a+rwx "${_CHROOT_DIR_PARENT}" #in case CHROOT_DIR is not user-writable
 		CHROOT_DIR="${_CHROOT_DIR_PARENT}/${_TMP_ROOT_FS}"	# to enable moving the current CHROOT_DIR relative to _VIRTUAL_ARCHIVE for bootstrap archives, even if the original CHROOT_DIR is mounted on a device.
-		mkdir -p "${CHROOT_DIR}"
+		( umask 0; mkdir -p "${CHROOT_DIR}" )
 
 		fakeUname /  "${KERNEL_VER}"
 
@@ -271,7 +272,7 @@ create_archive(){
 				create_UBUNTU_bootstrap "${CHROOT_DIR}"
 				;;
 			CENTOS*)
-				create_CENTOS_bootstrap "${CHROOT_DIR}" "${KS_FILE}" "${_REPO_OS}" "${_REPO_VCA}" "${_REPO_EXTRAS}"
+				create_CENTOS_bootstrap "${CHROOT_DIR}" "${KS_FILE}" "${_REPO_OS}/BaseOS" "${_REPO_VCA}" "${_REPO_EXTRAS}"
 				;;
 			*)
 				# cannot break here as environment has to be restored first
@@ -308,9 +309,12 @@ create_archive(){
 
 	# prepare a virtual structure named relative to CHROOT_DIR, identical to the archive format, for running the PREADD/POSTADD scripts:
 	local _ARCH_SHORT; _ARCH_SHORT="$( basename -- "${ARCHIVE_FILE}" )"
-	local _VIRTUAL_ARCHIVE; _VIRTUAL_ARCHIVE="$( basename -- "$(mktemp --directory --tmpdir="${CHROOT_DIR}" virtual_archive_"${_ARCH_SHORT}".XXX )" )"|| die "Could not create the directory for virtual archive in ${CHROOT_DIR}"
+	local _VIRTUAL_ARCHIVE; _VIRTUAL_ARCHIVE="$(${_CONST_SUDO} mktemp --directory --tmpdir="${CHROOT_DIR}" virtual_archive_"${_ARCH_SHORT}".XXX )"|| die "Could not create the directory for virtual archive in ${CHROOT_DIR}"
+	${_CONST_SUDO} chmod a+rwx "${_VIRTUAL_ARCHIVE}"
+	_VIRTUAL_ARCHIVE="$( basename -- "${_VIRTUAL_ARCHIVE}" )"
 	# CUSTOM_FILE_DIR is empty for bootstrap archives:
 	build_virtual_archive "${CHROOT_DIR}/${_VIRTUAL_ARCHIVE}" "" "" "" "${CUSTOM_FILE_DIR}" "${PREADD_SCRIPT}" "${POSTADD_SCRIPT}"
+
 	if [ -n "${DESCRIPTION}" ] ; then
 		create_info_file "${CHROOT_DIR}/${_VIRTUAL_ARCHIVE}" ${DESCRIPTION} "${KERNEL_VER}" "${AUTHOR}" "${PKG_LIST[@]:-}" # DESCRIPTION provides TWO parameters
 	else

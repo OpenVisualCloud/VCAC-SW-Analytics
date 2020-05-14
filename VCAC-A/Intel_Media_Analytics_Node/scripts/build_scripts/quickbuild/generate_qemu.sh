@@ -19,7 +19,7 @@
 # Intel VCA Scripts.
 #
 
-set -eEo pipefail
+set -eEou pipefail
 
 function print_help {
 	echo 'Help:'
@@ -45,11 +45,50 @@ function gen_qemu_ubuntu {
 	cd roms/seabios
 	make -j "$PROCS" || die 'Error when making qemu bios'
 	cd -
+	mkdir -p usr/bin
+	cp roms/seabios/out/bios.bin usr/bin
 	sudo checkinstall -D --nodoc --install=no --default \
-		--pkgname='vca-qemu' \
+		--include usr/bin/bios.bin \
+		--pkgname="vca-qemu-${QEMU_VER}" \
 		--pkgversion="${PKG_VER#VcaQemu-}" \
 		make -j "$PROCS" install \
 		|| die 'Make install failed'
+		mv *.deb ..
+}
+
+function create_rpmbuild {
+    if [ -z $1 ]; then
+        return 1
+    fi
+    mkdir -p $1/BUILD >> /dev/null 2> /dev/null
+    mkdir -p $1/BUILDROOT >> /dev/null 2> /dev/null
+    mkdir -p $1/BUILT >> /dev/null 2> /dev/null
+    mkdir -p $1/RPMS >> /dev/null 2> /dev/null
+    mkdir -p $1/SOURCES >> /dev/null 2> /dev/null
+    mkdir -p $1/SPECS >> /dev/null 2> /dev/null
+    mkdir -p $1/SRPM >> /dev/null 2> /dev/null
+    mkdir -p $1/SRPMS >> /dev/null 2> /dev/null
+}
+
+function create_tarball {
+    dirname=vca-qemu-$1-${PKG_VER}
+    mkdir ../$dirname
+    cp -r * ../$dirname
+    tar -czf vca-qemu-$1.tar.gz ../$dirname
+    rm -rf ../$dirname
+}
+
+function gen_qemu_centos {
+    RPMBUILD=$(pwd)"/../../output/rpmbuild"
+    create_rpmbuild $RPMBUILD
+    rm -rf $RPMBUILD/BUILD/vca-qemu*
+    create_tarball $1
+    mv *tar.gz $RPMBUILD/SOURCES
+
+    rpmbuild -ba --define "_unpackaged_files_terminate_build 0" --define "_topdir $RPMBUILD" --define "_version ${PKG_VER}" make.spec \
+    || die 'Create rpm failed'
+    mv $RPMBUILD/RPMS/*/vca-qemu*.rpm ..
+    mv $RPMBUILD/SRPMS/vca-qemu*.rpm ..
 }
 
 # main:
@@ -57,13 +96,24 @@ echo "Generate VcaQemu"
 echo "OS: ${OS:=UBUNTU}"
 echo "PKG_VER: ${PKG_VER:=0.0.0}"
 
-case $OS in
-UBUNTU)
-	gen_qemu_ubuntu
-	echo 'Build has ended with status: SUCCESSFUL'
-;;
-*)
-	print_help
-	die 'Unsupported OS type'
-;;
-esac
+for QEMU_VER in $(ls | grep -P "^v[0-9]+.[0-9]+[.0-9]*$")
+do
+    if [ -d $QEMU_VER ]
+    then
+        cd $QEMU_VER
+        case $OS in
+            UBUNTU)
+                gen_qemu_ubuntu
+                ;;
+            CENTOS)
+                gen_qemu_centos $QEMU_VER
+                ;;
+            *)
+                print_help
+                die 'Unsupported OS type'
+                ;;
+        esac
+        echo "Build $QEMU_VER has ended with status: SUCCESSFUL"
+        cd ..
+    fi
+done

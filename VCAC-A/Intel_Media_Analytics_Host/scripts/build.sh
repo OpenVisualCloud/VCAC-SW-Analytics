@@ -540,15 +540,18 @@ build_vcaa_daemon() {
 	 
 	_extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR}"
         local APPS_DIR= 
-	
+        local daemon_name=	
 	if [ ${OS_VER} == "centos7" ];then
             APPS_DIR="VCAC-SW-VCAC-A_R2"
+            daemon_name="2.7.3-centos7"
 	fi
 	if [ ${OS_VER} == "centos8" ];then
            APPS_DIR="VCAC-SW-VCAC-A_R4"
+           daemon_name="2.7.3-centos8"
+           sed -i 's/python/python3/g' ${_DOWNLOAD_DIR}/${APPS_DIR}/apps/scripts/vca_config_upgrade.sh
         fi
         _cd ${_DOWNLOAD_DIR}/${APPS_DIR}/apps
-        BOOST_ROOT=${_DAEMON_DIR}/${BOOST_NAME} OS=CENTOS WORKSPACE=/tmp/tmp-test PKG_VER=2.7.3 MODULES_SRC=../modules/ ${_DOWNLOAD_DIR}/${APPS_DIR}/apps/generate_apps.sh
+        BOOST_ROOT=${_DAEMON_DIR}/${BOOST_NAME} OS=CENTOS WORKSPACE=/tmp/tmp-test PKG_VER=${daemon_name} MODULES_SRC=../modules/ ${_DOWNLOAD_DIR}/${APPS_DIR}/apps/generate_apps.sh
 	_copy /tmp/tmp-test/daemon-vca*.rpm ${_HOST_PKG_DIR}
 	debug ${DEBUG_LEVEL} "-- build_vcaa_daemon"
 }

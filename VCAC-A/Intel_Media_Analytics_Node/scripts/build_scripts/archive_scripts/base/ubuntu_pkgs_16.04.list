@@ -43,19 +43,12 @@ iproute2
 # for vca_elog.py script
 dmidecode
 
-# temperature logging, mcelog dropped in Ubuntu 18.04 Bionic (https://bugs.launchpad.net/ubuntu/+source/mcelog/+bug/1752251), rasdaemon suggested instead (for the mcelog test):
+# temperature logging, MCE log (for the mcelog test):
 lm-sensors
-rasdaemon
+mcelog
 
 # for vca_elog.py script and for the mcelog test:
 python
 
 # vcacenter:
 wget
-
-# dependencies of daemon-vca:
-mtools
-ipcalc
-gdisk
-kpartx
-gawk

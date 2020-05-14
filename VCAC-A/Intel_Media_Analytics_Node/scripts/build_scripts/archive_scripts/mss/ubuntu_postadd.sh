@@ -55,12 +55,10 @@ esac
 PARENT_DIR="/${MSS_INSTALL_DIR}"/Generic/lib/modules
 [[ "${CURR_KER_VER}" == 4.4.* || "${CURR_KER_VER}" == 4.13.* ]] && ln -s "${PARENT_DIR}"/4.4.0-vpg20160125-gcc4.7.2/ "${PARENT_DIR}/${CURR_KER_VER}"-vpg20160125-gcc4.7.2 2>/dev/null || true
 
-
-echo "MSS Test ker ver" ${CURR_KER_VER} "|" ${CHROOT_DIR} "|" ${FAKED_KER_VER}
 # link installed modules to mimic the modules of the faked kernel; needed for 2018R1:
-#ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}" 2>/dev/null || true
-#ORIGINAL_UNAME="$(getOriginalOfFakedCommand "${CHROOT_DIR}"/bin/uname)"
-#[ "$( realpath "${CHROOT_DIR}" )" != "/" ] && ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"$( "${ORIGINAL_UNAME}" -r )" 2>/dev/null || true	# the currently booted kernel info leaks to the build process in chroot, despite faking uname and depmod in chroot. Produces "libkmod: ERROR ../libkmod/libkmod.c:586 kmod_search_moddep: could not open moddep file '/lib/modules/<host-kernel-version>/modules.dep.bin'"
+[ "${CURR_KER_VER}" != "${FAKED_KER_VER}" ] && ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"${FAKED_KER_VER}" 2>/dev/null || true
+ORIGINAL_UNAME="$(getOriginalOfFakedCommand "${CHROOT_DIR}"/bin/uname)"
+[ "$( realpath "${CHROOT_DIR}" )" != "/" ] && ln -s /lib/modules/"${CURR_KER_VER}" "${CHROOT_DIR}"/lib/modules/"$( "${ORIGINAL_UNAME}" -r )" 2>/dev/null || true	# the currently booted kernel info leaks to the build process in chroot, despite faking uname and depmod in chroot. Produces "libkmod: ERROR ../libkmod/libkmod.c:586 kmod_search_moddep: could not open moddep file '/lib/modules/<host-kernel-version>/modules.dep.bin'"
 
 # /usr/sbin/grub-mkconfig wants to create /boot/grub/grub.cfg.new in CHROOT:
 mkdir -p "${CHROOT_DIR}"/boot/grub/
@@ -85,10 +83,12 @@ case "${CURR_KER_VER}" in
 	4.14*)	# MSS 2018R2
 		cd "/${MSS_INSTALL_DIR}"
 		./install_media.sh
-        ;;
-	4.19*)  # MSS 2018R2
-                cd "/${MSS_INSTALL_DIR}"
-                ./install_media.sh
+
+		cd intel-opencl-16.9-00158
+		mkdir /usr/local/lib64
+		cp usr/local/lib64/* /usr/local/lib64/
+		cp etc/ld.so.conf.d/libintelopencl.conf /etc/ld.so.conf.d/
+		cp -r etc/OpenCL /etc/
 	;;
 	*)	# do not fake anything; unbelievable
 		cd "/${MSS_INSTALL_DIR}"

@@ -166,7 +166,6 @@ create_tar(){
 		fi
 		create_rootfs.sh -k "${KERNEL_VER}" -d "${DESCR}" -o "${ROOTFS}" "${ARCHIVES[@]}"
 	fi
-
 	if [ ! -d "${ARCHIVE_PATH_OUT}" ] ; then
 		stderr "Going to create non-existent output directory for archives: '${ARCHIVE_PATH_OUT}'"
 		mkdir -p "${ARCHIVE_PATH_OUT}" || die "Could not create output directory for archives: '${ARCHIVE_PATH_OUT}'"
@@ -208,8 +207,10 @@ mv_tar(){
 
 stderr "Called as: $0 $*"
 create_tar "$@" && stderr "Finished: $0 $*"
+echo ${SIZE}
+
 mv_tar
 
 #PKG_VER=`echo ${PKG_VER}` OS=UBUNTU DIST=16.04.3 KER_VER=`echo ${KERNEL_VER}` OUT=../INSTALL FEATURE=MSS ${SCRIPT_DIR}/quickbuild/generate_images.sh
 
-PKG_VER=`echo ${PKG_VER}` OS=UBUNTU DIST=`echo ${DIST}` KER_VER=`echo ${KERNEL_VER}` OUT=../INSTALL FEATURE=STD ${SCRIPT_DIR}/quickbuild/generate_images.sh ${SIZE}
+PKG_VER=`echo ${PKG_VER}` OS=UBUNTU DIST=`echo ${DIST}` KER_VER=`echo ${KERNEL_VER}` OUT=../INSTALL FEATURE=STD ${SCRIPT_DIR}/quickbuild/generate_images.sh ${SIZE} 

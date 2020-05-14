@@ -7,7 +7,7 @@ declare -gr -A _CONST_ADD_SCRIPTS=( ["PRE"]="preadd.sh" ["POST"]="postadd.sh" )	
 readonly _CONST_APT_DB_FILENAME=apt.tar.gz
 readonly _CONST_ARCHIVE_INFO_FILE_NAME=arch_info.txt
 readonly _CONST_CUSTOM_DIR=custom
-declare -gr -A _CONST_DISTROS=( ["16.04"]="xenial" ["16.04.3"]="xenial" ["16.04.4"]="xenial" ["18.04"]="bionic")	# Bash v.4 supports dictionaries. Mapping of description to distribution name:
+declare -gr -A _CONST_DISTROS=( ["16.04"]="xenial" ["16.04.3"]="xenial" ["16.04.4"]="xenial" ["16.10"]="yakkety" ["18.04"]="bionic")	# Bash v.4 supports dictionaries. Mapping of description to distribution name:
 readonly _CONST_DEBUG_LEVEL=1	# 0 means no debug; positive numbers increase verbosity
 readonly _CONST_FAKE_EXT=ORG	# can not contains characters special to regex (used in sed)
 _FAKED_COMMANDS_REGISTER=() 	# an array of faked commands' original and faked names; to be reverted to their original state
@@ -15,9 +15,9 @@ readonly _CONST_PKGDB_LINK=pkgdb_link
 readonly _CONST_PKGDB_ROOT=pkgdb_root_link
 readonly _CONST_PKG_DIR=archives
 readonly _CONST_PKG_EXT=deb			# the file name extension for the software packages
-# TODO: running as non-root has not been tested
+# TODO: running as non-root not fullly tested
 # sudo needs only be installed when not running as root:
-[ "$( id -u )" == 0 ] && readonly  _CONST_SUDO="" || readonly _CONST_SUDO=sudo
+[ "$( id -u )" == 0 ] && readonly  _CONST_SUDO="" || readonly _CONST_SUDO="sudo -E"
 
 stderr(){
 	echo "*** $*" >&2
@@ -252,7 +252,7 @@ extract_archive () {
 	done
 	if [ "${_DB_COUNT}" -gt 0 ] ; then
 		[ ! -d  "${_DST}/var/lib/apt" ] && warn "Missing apt-get db under ${_DST}" && return 1
-		# expecting 4 subdirectories like: keyrings/  lists/  mirrors/  periodic/
+		# expecting 3 subdirectories like: lists/  mirrors/  periodic/
 		local _NUM_OF_DIRS; _NUM_OF_DIRS=$(find "${_DST}/var/lib/apt/" -type d -maxdepth 1 -mindepth 1 2>/dev/null | wc -l  )
 		[[ ${_NUM_OF_DIRS} -lt 3  || ${_NUM_OF_DIRS} -gt 6 ]] && warn "Incorrect apt-get db structure under ${_DST} (${_NUM_OF_DIRS} subdirectories)" && return 1
 		# As per https://askubuntu.com/a/28375 only *Release and *Packages files are needed; but I have observed:
@@ -516,14 +516,14 @@ fakeAndRegisterCommand(){
 	# getfacl --absolute-names "${_COMMAND}" > "${_CMD_PERMISSIONS}"
 	local _COMMAND_BACKUP; _COMMAND_BACKUP="$(getFakedCommandBackupName "${_COMMAND}")"
 	# mv "${_COMMAND}" "${_COMMAND_BACKUP}"
-	cp --preserve=all "${_COMMAND}" "${_COMMAND_BACKUP}"
+	${_CONST_SUDO} cp --preserve=all "${_COMMAND}" "${_COMMAND_BACKUP}"
 	echo "#!/bin/bash
 #
 # Faked by host:$(hostname),program:$0 on $(date)
 # Original command still exists as '${_FAKED_ORIGINAL_NAME}'
 # Previously faked (if any) version saved as '${_COMMAND_BACKUP}'
-"> "${_COMMAND}"
-	cat - >> "${_COMMAND}"	# append stdin to ${_COMMAND}
+" | ${_CONST_SUDO}  tee "${_COMMAND}" > /dev/null
+	cat - | ${_CONST_SUDO}  tee -a "${_COMMAND}" > /dev/null	# append stdin to ${_COMMAND}
 
 	# restore command permissions:
 	# setfacl --restore="${_CMD_PERMISSIONS}"
@@ -547,7 +547,7 @@ restoreFakedRegisteredCommands(){
 	for (( IDX=${#_FAKED_COMMANDS_REGISTER[@]}-1 ; IDX>=_END_IDX	; IDX-- )) ; do
 		local _COMMAND_ORIGN; _COMMAND_ORIGN="$(awk -F// '{print $1}' <<<"${_FAKED_COMMANDS_REGISTER[IDX]}")"
 		local _COMMAND_SAVED; _COMMAND_SAVED="$(awk -F// '{print $2}' <<<"${_FAKED_COMMANDS_REGISTER[IDX]}")"
-		mv "${_COMMAND_SAVED}" "${_COMMAND_ORIGN}"
+		${_CONST_SUDO} mv "${_COMMAND_SAVED}" "${_COMMAND_ORIGN}"
 	done
 	if [ -n "${_LAST_ONLY}" ] ; then
 		unset "_FAKED_COMMANDS_REGISTER[${#_FAKED_COMMANDS_REGISTER[@]}-1]" # remove the last element; the quotes prevent wildcard expansion in [], shoud any result by error
@@ -775,7 +775,7 @@ do_dpkg(){
 		echo "Installing ${_WILDCARDED_PKG_LIST[*]} in ${_CHROOT_DIR}" >&2
 		echo "Supressing the following dpkg messages considered harmless: ${_CONST_HARMLESS}"
 
-		dpkg --install ${_WILDCARDED_PKG_LIST[@]} 2>&1 | grep -v "${_CONST_HARMLESS}"
+		dpkg --install --force-confnew ${_WILDCARDED_PKG_LIST[@]} 2>&1 | grep -v "${_CONST_HARMLESS}"
 EOF
 }
 

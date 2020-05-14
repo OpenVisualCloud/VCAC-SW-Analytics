@@ -18,7 +18,7 @@
 #
 # Intel VCA Scripts.
 #
-set -eu
+set -euE
 
 STEP="$1"			; shift
 PHASE="$1"			; shift
@@ -28,25 +28,8 @@ CHROOT_DIR="$1"		; shift
 
 . "${SCRIPTS_DIR}/library_image_creation.sh"
 
-CHROOT_FIRMWARE_DIR="${CHROOT_DIR}/lib/firmware/i915/"
-mkdir -p "${CHROOT_FIRMWARE_DIR}"
-cp "${SCRIPTS_DIR}/additional_binaries/skl_dmc_ver1_27.bin" "${CHROOT_FIRMWARE_DIR}"
-
-echo "Configuring operating environment in ${CHROOT_DIR}" >&2
 do_chroot "${CHROOT_DIR}" /bin/bash << EOF || die "Could not configure operating environment in ${CHROOT_DIR}"
-	set -e
-
-	if [ -d /etc/modprobe.d/ ] ; then
-		echo blacklist e1000e > /etc/modprobe.d/blacklist-e1000e.conf
-	else
-		echo "Skipping modprobe configuration as /etc/modprobe.d/ does not exist (modprobe not installed?)" >&2
-		exit 1
-	fi
-	if [ -f /etc/ssh/ssh_config ] ; then
-		sed -i -r 's/^#(\s*PasswordAuthentication)/\1/' /etc/ssh/ssh_config
-		sed -i -r 's/^#?(\s*PermitRootLogin)\s+\S+/\1 yes/' /etc/ssh/sshd_config
-	else
-		echo "Skipping SSHD configuration as /etc/ssh/ssh_config does not exist (SSHD not installed?)" >&2
-		exit 2
-	fi
+		set -eu
+		echo 'vfio-pci' > /etc/modules-load.d/vfio-pci.conf
+		echo -e "options vfio-pci ids=1002:694c,1002:ab08,8086:591b\noptions vfio_iommu_type1 allow_unsafe_interrupts=1\noptions kvm ignore_msrs=1" > /etc/modprobe.d/vfio.conf
 EOF
