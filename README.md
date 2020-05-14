@@ -5,8 +5,8 @@
 
 # Documents
 Get the Release Notes and Software Installation guide for how to setup the VCAC-A card from links below:
-- [Release Notes](https://cdrdv2.intel.com/v1/dl/getContent/611358) 
-- [Software Installation Guide](https://cdrdv2.intel.com/v1/dl/getContent/611894)
+- [Release Notes](https://github.com/OpenVisualCloud/VCAC-SW-Analytics/blob/release/VCAC-A/R5/VCAC-A/Documents/VCAC-Analytics-releasenotes-rev5-0.pdf) 
+- [Software Installation Guide](https://github.com/OpenVisualCloud/VCAC-SW-Analytics/blob/release/VCAC-A/R5/VCAC-A/Documents/VCAC-Analytics-software-installation-guide-rev5-0.pdf)
 
 # Building
 ### Note: 
@@ -54,6 +54,14 @@ vcad_build.sh -o <BASIC/FULL/EXTENDED>  -s
 ```
 vcad_build.sh -o <BASIC/FULL/EXTENDED>  -e 24
 ```
+
+### Opt-in/out DL Streamer installation in silent mode
+DL (Deep Learning) Streamer (GStreamer* Video Analytics Plugin, GVA) is included in OpenVINO 2020.2. After start vcad_build.sh with option "-o FULL" or "-o EXTENDED", a message will pop up to opt-in/out DL Streamer while installing OpenVINO.   
+Silent mode is also provided with option "--silent silent.cfg", e.g:
+```
+vcad_build.sh -o <FULL/EXTENDED> --silent silent.cfg
+``` 
+The DL streamer opt-in/out is controlled by "GVA_INSTALL" parameter in silent.cfg under Intel_Media_Analytics_Node/scripts/
  
 # Contributing
 Use GitHub's "issues" or "pull-request" features, or reach via e-mail directly developers: Zhao, Ping or Liu, Yi (for e-mail addresses, look in git log). 
