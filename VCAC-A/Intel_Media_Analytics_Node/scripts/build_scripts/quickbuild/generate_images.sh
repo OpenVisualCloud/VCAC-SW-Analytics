@@ -292,7 +292,7 @@ function gen_ubuntu {
 	export VCA_ADDITIONAL_GRUB_PARAMS='i915.enable_rc6=0' # todo: refactor grub.cfg online generation/replacement
 
 	# include ${SIZE} in _IMAGE_NAME after "vca_disk", but before potential "_reference":
-	[ -z "${SIZE}" ] || _IMAGE_NAME="$(awk -v size="_${SIZE}gb" 'BEGIN { FS=OFS="_" } { $2=$2 size; print }' <<< "${_IMAGE_NAME}")"
+	[ -z "${SIZE}" ] || _IMAGE_NAME="$(awk -v size="${SIZE}" 'BEGIN { FS=OFS="_" } { $2=$2 size; print }' <<< "${_IMAGE_NAME}")"
 	"${SCRIPT_DIR}"/create_image.sh 													\
 		--bootstrap deb.tar --archive base.tar --archive vca-on-the-fly.tar ${_ARCHIVES}\
 		--image-type "${_IMAGE_TYPE}" --grub-cfg ${_GRUB_CFG}							\

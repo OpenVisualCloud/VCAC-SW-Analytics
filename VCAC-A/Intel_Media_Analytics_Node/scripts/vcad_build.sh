@@ -92,6 +92,7 @@ NO_CLEAN=0
 INSTALL_VCAD=0
 TASKS_TO_RUN=${DEFAULT_TASKS_TO_RUN}
 DEBUG_LEVEL=2
+streamer_install=
 
 show_help() {
 	# Keep parameters alphabetically sorted in help and in the 'case' switch which parses them.
