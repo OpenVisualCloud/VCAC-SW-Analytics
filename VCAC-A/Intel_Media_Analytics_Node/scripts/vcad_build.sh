@@ -614,7 +614,7 @@ install_vcad() {
 	mount --bind /proc ${_MOUNT_PATH}/proc/ || die "Failed to mount proc"
 
         #copy .config
-        _copy ${_MOUNT_PATH}/usr/src/linux-headers-${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/.config ${_MOUNT_PATH}/lib/modules/${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/config
+       _copy ${_MOUNT_PATH}/usr/src/linux-headers-${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/.config ${_MOUNT_PATH}/lib/modules/${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+/config
 
 	# copy packages
 	_create_dir "${_ROOT_PKG_PATH}"
@@ -653,6 +653,9 @@ install_vcad() {
 			git clone https://github.com/FFmpeg/FFmpeg.git
 		fi
 	fi
+         #set git proxy
+        git_http_proxy=$HTTP_PROXY
+        git_https_proxy=$HTTPS_PROXY
 
 	# generate install script
 	_cd ${BUILD_DIR}
@@ -663,7 +666,8 @@ export LC_ALL=C
 apt update && apt install -y libjson-c3 libboost-program-options1.65-dev libboost-thread1.65 libboost-filesystem1.65 libusb-dev cron python3-pip build-essential curl wget libssl-dev ca-certificates git libboost-all-dev gcc-multilib g++-multilib libgtk2.0-dev pkg-config libpng-dev libcairo2-dev libpango1.0-dev libglib2.0-dev libusb-1.0-0-dev i2c-tools libgstreamer-plugins-base1.0-dev libavformat-dev libavcodec-dev libswscale-dev libgstreamer1.0-dev  libusb-1.0-0-dev i2c-tools libjson-c-dev usbutils ocl-icd-libopencl*  ocl-icd-opencl-dev libsm-dev libxrender-dev libavfilter-dev tzdata cpio libgtk-3-dev
 
 rm -rf /usr/bin/python && cd /usr/bin && ln -s python3.6 python
-
+git config --global http.proxy ${git_http_proxy}
+git config --global https.proxy ${git_https_proxy}
 cd /root/package
 pip3 install numpy-*.whl
 pip3 install opencv_python-*.whl
