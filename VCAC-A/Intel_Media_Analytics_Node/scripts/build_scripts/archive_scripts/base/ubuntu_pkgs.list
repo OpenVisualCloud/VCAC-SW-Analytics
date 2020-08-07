@@ -3,6 +3,8 @@
 
 # kernel & modules configuration, diagnostics:
 kmod
+systemd-sysv
+systemd
 #module-init-tools nonessesntial; will be downloaded as dependency if needed
 pciutils
 acpid

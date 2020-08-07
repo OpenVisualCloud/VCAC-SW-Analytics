@@ -62,11 +62,12 @@ mv_vca_kernel(){
 	rm -rf image/*
 	rm -rf build/*
 	rm -rf vca_mod/*
-	dpkg -X linux-image-${KERNEL_VER}*.deb image
+	dpkg -X linux-image-*.deb image
 	dpkg -X vcass-modules*_amd64.deb vca_mod
 	dpkg -e vcass-modules*_amd64.deb vca_mod/DEBIAN/
 	rm  vca_mod/lib/modules/*/modules.*
 	dpkg -b vca_mod ./
+        
 #
 #	rm -rf vca_mod/lib/modules/4.14.20-1.2.3.3.vca
 #	mkdir -p vca_mod/lib/modules/${KERNEL_VER}/extra
@@ -77,7 +78,7 @@ mv_vca_kernel(){
 #	dpkg-deb -b vca_mod build
 	
 	rm -rf ${PKGS_DIR_VCA}/*
-	cp linux-*${KERNEL_VER}*.deb ${PKGS_DIR_VCA}
+	cp linux-*.deb ${PKGS_DIR_VCA}
 #	cp vcass-config_2.3.5-2_amd64.deb ${PKGS_DIR_VCA}
         cp vcass-modules*_amd64.deb ${PKGS_DIR_VCA}
 	cd ${SCRIPT_DIR}
@@ -171,6 +172,7 @@ create_tar(){
 		mkdir -p "${ARCHIVE_PATH_OUT}" || die "Could not create output directory for archives: '${ARCHIVE_PATH_OUT}'"
 	fi
 	CREATE_ARCHIVE_ARGS=(-c "host:$(hostname),script:$0,pwd:$(pwd)" -d "${DESCR}" -k "${KERNEL_VER}" -r "${ROOTFS}")
+ 
 	# create next SAs in an ordered manner:
 	case "${TARGET}" in
 		bootstrap)

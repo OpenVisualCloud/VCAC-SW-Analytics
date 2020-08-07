@@ -457,8 +457,8 @@ build_kernel_and_modules() {
 	fi
 	if [ ${OS_VER} == "centos8" ];then
             [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
-            [ ${NO_CLEAN} -eq 0 ] && cp -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/modules" "${_MODULES_DIR}/../"
-            _copy ${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/patches/kernel-4.18.0/kernel-4.18.0-147.config ${_KERNEL_DIR}/linux-${KERNEL_SRC_NAME}/.config
+            [ ${NO_CLEAN} -eq 0 ] && cp -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A-R6/modules" "${_MODULES_DIR}/../"
+            _copy ${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A-R6/patches/kernel-4.18.0/kernel-4.18.0-147.config ${_KERNEL_DIR}/linux-${KERNEL_SRC_NAME}/.config
 
 	fi
 	# apply modules patch
@@ -546,7 +546,7 @@ build_vcaa_daemon() {
             daemon_name="2.7.3-centos7"
 	fi
 	if [ ${OS_VER} == "centos8" ];then
-           APPS_DIR="VCAC-SW-VCAC-A_R4"
+           APPS_DIR="VCAC-SW-VCAC-A-R6"
            daemon_name="2.7.3-centos8"
            sed -i 's/python/python3/g' ${_DOWNLOAD_DIR}/${APPS_DIR}/apps/scripts/vca_config_upgrade.sh
         fi
@@ -587,7 +587,7 @@ variable_define()
            KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME_FULL}.rpm"
            KERNEL_SRC_LINK="http://vault.centos.org/8.1.1911/BaseOS/Source/SPackages/${KERNEL_SRC_ARCHIVE}"
 
-           VCA_SRC_ARCHIVE="VCAC-A_R4.tar.gz"
+           VCA_SRC_ARCHIVE="VCAC-A-R6.tar.gz"
            VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/${VCA_SRC_ARCHIVE}"
            MODULES_SRC_NAME="vcass-modules-30.01.20-0"
            MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.src.rpm"

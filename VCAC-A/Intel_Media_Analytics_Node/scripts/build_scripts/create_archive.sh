@@ -205,7 +205,7 @@ create_UBUNTU_bootstrap(){
 	local _VARIANT="minbase"
 	# Consider getting the newest debootstrap from http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/?C=M;O=D  + ar  debootstrap_1.0.*_all.deb + tar xf data.tar.gz.
 	# Calling debootstrap requires root privileges. Consider fakeroot fakeroot /polystrap: https://unix.stackexchange.com/a/214830
-	${_CONST_SUDO} debootstrap --arch=amd64  --variant "${_VARIANT}" "${_CODENAME}" "${_CHROOT_DIR}" http://archive.ubuntu.com/ubuntu/ || die "Could not create Ubuntu bootstrap archive"
+	${_CONST_SUDO} debootstrap --arch=amd64 --variant "${_VARIANT}" "${_CODENAME}" "${_CHROOT_DIR}" http://archive.ubuntu.com/ubuntu/ || die "Could not create Ubuntu bootstrap archive"
 }
 
 # returns path to the _IMG_CREATOR_ROOTFS_IMG image on which _CHROOT_DIR is mounted

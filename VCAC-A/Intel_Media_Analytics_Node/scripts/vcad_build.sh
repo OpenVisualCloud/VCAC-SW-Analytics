@@ -35,32 +35,36 @@ readonly DEFAULT_RUN_MODE="host"
 readonly DEFAULT_SIZE=48
 
 readonly FFMPEG_NAME="FFmpeg"
-
+readonly V2X_PACKAGE="intel-vcaa-ddwo-ubuntu18.04-amd64.deb"
+readonly V2X_COMMIT_ID="ef8404aef8e07ab885248f2ff901a35fa226f4bc"
 readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
 readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
-readonly BENCHMARK_COMMIT_ID="644d35e532632f8707440510eff5a00503d42959"
+readonly BENCHMARK_COMMIT_ID="2696fdb851da1e2fd1c51cded8fc2c548c13b41c"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
-
-readonly OPENVNO_DATE="2020.2.120"
+readonly OPENVNO_DATE="2020.4.287"
 readonly OPENVNO_NAME="l_openvino_toolkit_p_$OPENVNO_DATE.tgz"
-readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16612/${OPENVNO_NAME}"
-#http://registrationcenter-download.intel.com/akdlm/irc_nas/16612/l_openvino_toolkit_p_2020.2.120.tgz 
+readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16803/${OPENVNO_NAME}"
 
-readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel4.19.97_patch.tar.gz"
+readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel5.13.18_patch.tar.gz"
 readonly MODULES_PATCH_ARCHIVE="${MODULES_TAR_DIR}/vcass-modules-R4-patch.tar.gz"
 
 readonly VCAA_DOCKER_NAME="vcaa/ubuntu-18.04-test"
 readonly VCAA_DOCKER_VERSION="1.0"
 
-readonly KERNEL_VERSION="4.19"
-readonly KERNEL_VER="4.19.97"
-readonly KERNEL_SRC_NAME="linux-${KERNEL_VER}"
-readonly KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME}.tar.xz"
-readonly KERNEL_SRC_LINK="https://cdn.kernel.org/pub/linux/kernel/v4.x/${KERNEL_SRC_ARCHIVE}"
+         KERNEL_VERSION="5.3"
+         KERNEL_VER="5.3.0"
+readonly KERNEL_SRC_NAME="linux_${KERNEL_VER}"
+readonly KERNEL_SRC_ARCHIVE="${KERNEL_SRC_NAME}.orig.tar.gz"
+readonly KERNEL_SRC_LINK="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.3.0-53.47/linux_5.3.0.orig.tar.gz"
 
-readonly VCA_SRC_ARCHIVE="VCAC-A_R4.tar.gz"
+readonly KERNEL_PATCH_NAME="linux_5.3.0-53.47.diff.gz"
+readonly KERNEL_PATCH_LINK="https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/linux/5.3.0-53.47/linux_5.3.0-53.47.diff.gz"
+
+
+
+readonly VCA_SRC_ARCHIVE="VCAC-A-R6.tar.gz"
 readonly VCA_SRC_LINK="https://github.com/OpenVisualCloud/VCAC-SW/archive/${VCA_SRC_ARCHIVE}"
 readonly MODULES_SRC_NAME="vca_modules_R4"
 readonly MODULES_SRC_ARCHIVE="${MODULES_SRC_NAME}.tar.gz"
@@ -124,7 +128,7 @@ Options:
 -y, --https-proxy <https_proxy>	Set the https_proxy environment variable.
 -z, --no-proxy <no_proxy>	Set the no_proxy environment variablie.
 -e, --size <image size> To set the image size, default: ${DEFAULT_SIZE}
--o, --opt <build options(IPS,FULL,BASIC，EXTENDED)> To choose which build option and this command is necessary .
+-o, --opt <build options(IPS,FULL,BASIC，EXTENDED,V2X)> To choose which build option and this command is necessary .
 -h, --help	Show this help screen.
 "
 }
@@ -227,7 +231,7 @@ parse_parameters(){
 		show_help
 		exit 0
 	else
-	        if [ "${SET_OPT}" != "IPS" -a  "${SET_OPT}" != "FULL" -a "${SET_OPT}" != "BASIC" -a "${SET_OPT}" != "EXTENDED" ];then
+	        if [ "${SET_OPT}" != "IPS" -a  "${SET_OPT}" != "FULL" -a "${SET_OPT}" != "BASIC" -a "${SET_OPT}" != "EXTENDED" -a "${SET_OPT}" != "V2X" ];then
 			show_help
 			exit 0
 		fi
@@ -485,40 +489,42 @@ build_kernel_and_modules() {
 
 	# download and extract kernel source
 	[[ ! -f "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${KERNEL_SRC_LINK}" "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${KERNEL_SRC_ARCHIVE}"
+        _download "${KERNEL_PATCH_LINK}" "${_DOWNLOAD_DIR}/${KERNEL_PATCH_NAME}" "${KERNEL_PATCH_NAME}"
         _copy "${_DOWNLOAD_DIR}/${KERNEL_SRC_ARCHIVE}" "${_KERNEL_DIR}"
+        _copy "${_DOWNLOAD_DIR}/${KERNEL_PATCH_NAME}" "${_KERNEL_DIR}"
         _cd ${_KERNEL_DIR}
-        xz -d ${KERNEL_SRC_ARCHIVE}
-        tar xf ${KERNEL_SRC_NAME}.tar
+        tar zxvf ${KERNEL_SRC_ARCHIVE}
+        cd linux-5.3
+        gunzip -c ../${KERNEL_PATCH_NAME} | patch -p1
+        #apply github kernel patch
+        _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
+        [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_KERNEL_DIR}"
+        [ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_DIR}/VCAC-SW-VCAC-A-R6/patches/kernel-5.3.0-53-generic/" "${KERNEL_SRC_ARCHIVE}"
      
 	# apply local kernel patch
-	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${KERNEL_PATCH_ARCHIVE}" "${_KERNEL_PATCH_DIR}"
-	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/${KERNEL_SRC_NAME}" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
-
+	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${KERNEL_PATCH_ARCHIVE}" "${_KERNEL_PATCH_DIR}"       
+	[ ${NO_CLEAN} -eq 0 ] && _apply_patch "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
 	# download and extract modules source
 	[[ ! -f "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
 #	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR_VCA}/${MODULES_SRC_ARCHIVE}" "${_MODULES_DIR}"
-	[ ${NO_CLEAN} -eq 0 ] && _copy -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A_R4/modules" "${_MODULES_DIR}/../"
-
+	[ ${NO_CLEAN} -eq 0 ] && _copy -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A-R6/modules" "${_MODULES_DIR}/../"
 	# apply modules patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${MODULES_PATCH_ARCHIVE}" "${_MODULES_PATCH_DIR}"
-	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_MODULES_DIR}" "${_MODULES_PATCH_DIR}" "${MODULES_SRC_NAME}"
-
+	[ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_MODULES_DIR}" "${_MODULES_PATCH_DIR}" "${MODULES_SRC_NAME}" 
 	# remove previous built files
 	rm -rf ${_KERNEL_DIR}/*.changes || die "Failed to remove *.changes kernel files"
 	rm -rf ${_KERNEL_DIR}/*.tar.gz || die "Failed to remove *.tar.gz kernel files"
 	rm -rf ${_KERNEL_DIR}/*.dsc || die "Failed to remove *.dsc kernel files"
 	rm -rf ${_KERNEL_DIR}/*.deb || die "Failed to remove *.deb kernel files"
-         
+                
 	# build kernel
-	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
+	_cd "${_KERNEL_DIR}/linux-5.3"
         _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
 	make x86_64_vcxa_defconfig
 	OS="UBUNTU" PKGVERSION=${_COMMIT_ID_KERNEL} make -j`nproc` deb-pkg || die "Failed to build kernel"
 	dpkg -i ${_KERNEL_DIR}/linux-headers-*.deb || die "Failed to install kernel headers"
-        
-
 	# remove previous built files
 	local _MODULES_OUTPUT_DIR="${_VCAA_KERNEL_DIR}/output"
 	rm -rf ${_MODULES_OUTPUT_DIR}/*.tar.gz || die "Failed to remove *.tar.gz module files"
@@ -580,12 +586,15 @@ build_vcad() {
 	# modify build scripts
 	grep -r "firewalld" --binary-files=without-match "${_BUILD_SCRIPTS_DIR}" | sed  's/:firewalld//g' | xargs sed -i "s/firewalld/#firewalld/g"
 
-	_cd "${_KERNEL_DIR}/${KERNEL_SRC_NAME}"
+	_cd "${_KERNEL_DIR}/linux-5.3"
 	local _COMMIT_ID_KERNEL=$(git rev-parse --short HEAD)
 	[ -z "${_COMMIT_ID_KERNEL}" ] && die "Failed to get kernel commit id"
 
 	_cd ${_BUILD_SCRIPTS_DIR}
+        KERNEL_VER=5.3.18
+        
 	local _KERNEL_NAME=${KERNEL_VER}-1.${_COMMIT_ID_KERNEL}.vca+
+ 
 	local _OS_VERSION="18.04"
 	local _BUILD_ID=1
 	sudo -E ${_BUILD_SCRIPTS_DIR}/build_ubuntu_vcad.sh -d ${_OS_VERSION} -s ${SET_SIZE} -o /tmp/a -k ${_KERNEL_NAME} \
@@ -654,13 +663,14 @@ install_vcad() {
 		fi
 	fi
          #set git proxy
-         if [ ! $HTTP_PROXY ] ; then
+        if [ ! $HTTP_PROXY ] ; then
            git_proxy_flag=0
-         else
+          
+        else
            git_proxy_flag=1
            git_http_proxy=$HTTP_PROXY
            git_https_proxy=$HTTPS_PROXY
-         fi
+        fi
 	# generate install script
 	_cd ${BUILD_DIR}
 	cat > install_package_in_image.sh <<EOF 
@@ -835,6 +845,22 @@ rm -rf /root/package
 
 EOF
        fi
+if [ ${SET_OPT} == "V2X" ];then
+   _cd ${BUILD_DIR}
+   cat > install_package_in_image.sh <<EOF
+#!/bin/bash
+apt update && apt -y install git
+if [ ${git_proxy_flag} == 1 ];then
+   git config --global http.proxy ${git_http_proxy}
+   git config --global https.proxy ${git_https_proxy}
+fi
+git clone ${BENCHMARK_DEB_LINK}
+cd VCAC-SW-Analytics
+git reset --hard ${V2X_COMMIT_ID} 
+dpkg -i VCAC-A/Intel_Media_Analytics_Node/tar/${V2X_PACKAGE}
+rm -rf /root/package
+EOF
+fi
  
 	chmod +x install_package_in_image.sh || die "Failed to chmod +x install_package_in_image.sh" 
 	_copy "install_package_in_image.sh" "${_ROOT_PKG_PATH}/install_package_in_image.sh"
@@ -865,12 +891,12 @@ vcad_build() {
 
         if [ ! "${cfg_path}" ];then
 
-            if [ ${SET_OPT} != "BASIC" ];then
+            if [ ${SET_OPT} != "BASIC" -a "${SET_OPT}" != "V2X" ];then
                 dl_streamer_install_yes_or_no
             fi
 
         else
-          if [ ${SET_OPT} != "BASIC" ];then
+          if [ ${SET_OPT} != "BASIC" -a "${SET_OPT}" != "V2X" ];then
            cfg_read
           fi
         fi
@@ -921,6 +947,3 @@ vcad_build() {
 
 stderr "Called as: $0 $*"
 vcad_build "$@" && stderr "Finished: $0 $*"
-
-
-
