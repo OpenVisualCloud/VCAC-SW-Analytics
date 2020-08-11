@@ -497,19 +497,6 @@ build_kernel_and_modules() {
         cd linux-5.3
         gunzip -c ../${KERNEL_PATCH_NAME} | patch -p1
         #apply github kernel patch
-    
-
-         mkdir -p ${CACHE_DIR}
-         cd ${CACHE_DIR}
-         git clone https://github.com/OpenVisualCloud/VCAC-SW.git
-         cd VCAC-SW/
-         git checkout remotes/origin/VCAC-A-R6
-         cd ..
-         mv VCAC-SW/ VCAC-SW-VCAC-A-R6/
-         tar czf VCAC-A-R6.tar.gz VCAC-SW-VCAC-A-R6/
-
-
-
         _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
         [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_KERNEL_DIR}"
         [ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_DIR}/VCAC-SW-VCAC-A-R6/patches/kernel-5.3.0-53-generic/" "${KERNEL_SRC_ARCHIVE}"
