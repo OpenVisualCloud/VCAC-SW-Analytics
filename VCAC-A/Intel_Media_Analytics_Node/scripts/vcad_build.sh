@@ -39,7 +39,7 @@ readonly V2X_PACKAGE="intel-vcaa-ddwo-ubuntu18.04-amd64.deb"
 readonly V2X_COMMIT_ID="ef8404aef8e07ab885248f2ff901a35fa226f4bc"
 readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
 readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
-readonly BENCHMARK_COMMIT_ID="2696fdb851da1e2fd1c51cded8fc2c548c13b41c"
+readonly BENCHMARK_COMMIT_ID="d460d0598a9f13ea935545e1aba8e2104f810b13"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
@@ -47,7 +47,7 @@ readonly OPENVNO_DATE="2020.4.287"
 readonly OPENVNO_NAME="l_openvino_toolkit_p_$OPENVNO_DATE.tgz"
 readonly OPENVNO_LINK="http://registrationcenter-download.intel.com/akdlm/irc_nas/16803/${OPENVNO_NAME}"
 
-readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel5.13.18_patch.tar.gz"
+readonly KERNEL_PATCH_ARCHIVE="${TAR_DIR}/ubuntu18.04_kernel5.3.18_patch.tar.gz"
 readonly MODULES_PATCH_ARCHIVE="${MODULES_TAR_DIR}/vcass-modules-R4-patch.tar.gz"
 
 readonly VCAA_DOCKER_NAME="vcaa/ubuntu-18.04-test"
@@ -497,6 +497,19 @@ build_kernel_and_modules() {
         cd linux-5.3
         gunzip -c ../${KERNEL_PATCH_NAME} | patch -p1
         #apply github kernel patch
+    
+
+         mkdir -p ${CACHE_DIR}
+         cd ${CACHE_DIR}
+         git clone https://github.com/OpenVisualCloud/VCAC-SW.git
+         cd VCAC-SW/
+         git checkout remotes/origin/VCAC-A-R6
+         cd ..
+         mv VCAC-SW/ VCAC-SW-VCAC-A-R6/
+         tar czf VCAC-A-R6.tar.gz VCAC-SW-VCAC-A-R6/
+
+
+
         _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
         [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_KERNEL_DIR}"
         [ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_DIR}/VCAC-SW-VCAC-A-R6/patches/kernel-5.3.0-53-generic/" "${KERNEL_SRC_ARCHIVE}"
@@ -849,7 +862,7 @@ if [ ${SET_OPT} == "V2X" ];then
    _cd ${BUILD_DIR}
    cat > install_package_in_image.sh <<EOF
 #!/bin/bash
-apt update && apt -y install git
+apt update && apt -y install git dbus tzdata
 if [ ${git_proxy_flag} == 1 ];then
    git config --global http.proxy ${git_http_proxy}
    git config --global https.proxy ${git_https_proxy}
