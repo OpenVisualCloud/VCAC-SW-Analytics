@@ -500,7 +500,6 @@ build_kernel_and_modules() {
         _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
         [ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_KERNEL_DIR}"
         [ ${NO_CLEAN} -eq 0 ] && _apply_patch_git "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_DIR}/VCAC-SW-VCAC-A-R6/patches/kernel-5.3.0-53-generic/" "${KERNEL_SRC_ARCHIVE}"
-     
 	# apply local kernel patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${KERNEL_PATCH_ARCHIVE}" "${_KERNEL_PATCH_DIR}"       
 	[ ${NO_CLEAN} -eq 0 ] && _apply_patch "${_KERNEL_DIR}/linux-5.3" "${_KERNEL_PATCH_DIR}" "${KERNEL_SRC_NAME}"
@@ -729,10 +728,7 @@ install_openvino()
    rm -rf /opt/
    cd /root/package
    tar -zxf ${OPENVNO_NAME}
-#   cd l_openvino_toolkit_p_2020.1.023
    cd l_openvino_toolkit_p_$OPENVNO_DATE
-#   sed -i "s/libfaac0/#libfaac0/" install_openvino_dependencies.sh
-#   sed -i "s/libfdk-aac1/#libfdk-aac1/" install_openvino_dependencies.sh
    ./install_openvino_dependencies.sh
    accept_eula=\`cat silent.cfg |grep ACCEPT_EULA=\`
    accept_eula_name=\${accept_eula#*=}
@@ -743,12 +739,15 @@ install_openvino()
    if [ \${streamer_install} == 0 ];then
    sed -i "s/=DEFAULTS/=intel-openvino-ie-sdk-ubuntu-bionic__x86_64;intel-openvino-ie-rt-cpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-vpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gna-ubuntu-bionic__x86_64;intel-openvino-ie-rt-hddl-ubuntu-bionic__x86_64;intel-openvino-model-optimizer__x86_64;intel-openvino-dl-workbench__x86_64;intel-openvino-opencv-lib-ubuntu-bionic__x86_64;intel-openvino-omz-dev__x86_64;intel-openvino-opencv-etc__noarch/" silent.cfg
    
-   streamer_value1=\`sed -n -e "1407p" pset/mediaconfig.xml\`
+   streamer_value1=\`sed -n -e "1363p" pset/mediaconfig.xml\`
    streamer_value1_=\${streamer_value1/'mandatory="1"'/'mandatory="0"'}
-   sed -i "1407c\${streamer_value1_}" pset/mediaconfig.xml
-   streamer_value2=\`sed -n -e "1275p" pset/mediaconfig.xml\`
+   sed -i "1363c\${streamer_value1_}" pset/mediaconfig.xml
+   streamer_value2=\`sed -n -e "1297p" pset/mediaconfig.xml\`
    streamer_value2_=\${streamer_value2/'mandatory="1"'/'mandatory="0"'}
-   sed -i "1275c\${streamer_value2_}" pset/mediaconfig.xml
+   sed -i "1297c\${streamer_value2_}" pset/mediaconfig.xml
+   source_xml='platform="INTEL64" invisible="1" id="7" depend="10.6" mandatory="1" core="0"'
+   target_xml='platform="INTEL64" invisible="1" id="7" depend="10.6" mandatory="0" core="0"'
+   sed -i 's/platform="INTEL64" invisible="1" id="7" depend="10.6" mandatory="1" core="0"/platform="INTEL64" invisible="1" id="7" depend="10.6" mandatory="0" core="0"/' pset/mediaconfig.xml
    fi
  
    bash install.sh --ignore-signature --cli-mode -s silent.cfg
