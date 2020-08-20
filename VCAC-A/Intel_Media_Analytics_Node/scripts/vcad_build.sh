@@ -36,10 +36,10 @@ readonly DEFAULT_SIZE=48
 
 readonly FFMPEG_NAME="FFmpeg"
 readonly V2X_PACKAGE="intel-vcaa-ddwo-ubuntu18.04-amd64.deb"
-readonly V2X_COMMIT_ID="ef8404aef8e07ab885248f2ff901a35fa226f4bc"
+readonly V2X_COMMIT_ID="29b3e3f658fa6bdc3bdaa858951838a6fc794b28"
 readonly BENCHMARK_PKG="intel-vcaa-benchmark-ubuntu18.04-amd64.deb"
 readonly BENCHMARK_DEB_LINK="https://github.com/OpenVisualCloud/VCAC-SW-Analytics.git"
-readonly BENCHMARK_COMMIT_ID="d460d0598a9f13ea935545e1aba8e2104f810b13"
+readonly BENCHMARK_COMMIT_ID="29b3e3f658fa6bdc3bdaa858951838a6fc794b28"
 
 readonly MSS_OCL_NAME="MediaServerStudioEssentials2019R1HF3_16.9_10020.tar.gz"
 readonly MSS_OCL_LINK="https://github.com/Intel-Media-SDK/MediaSDK/releases/download/MSS-KBL-2019-R1-HF1/${MSS_OCL_NAME}"
@@ -152,7 +152,7 @@ cfg_read()
 
 dl_streamer_install_yes_or_no()
 {
-read -p "Notice: DL (Deep Learning) Streamer (GStreamer* Video Analytics Plugin, GVA) is included in OpenVINO 2020.2. DL Streamer will take about 300M disk space.
+read -p "Notice: DL (Deep Learning) Streamer (GStreamer* Video Analytics Plugin, GVA) is included in OpenVINO 2020.4. DL Streamer will take about 300M disk space.
            Choose yes/y or no/n to select to install DL Streamer or not:" streamer_flage
   if [ ${streamer_flage} == "yes" -o ${streamer_flage} == "y" ];then
    
@@ -506,7 +506,6 @@ build_kernel_and_modules() {
 	# download and extract modules source
 	[[ ! -f "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" || ${NO_CLEAN} -eq 0 ]] && _download "${VCA_SRC_LINK}" "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${VCA_SRC_ARCHIVE}"
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR}/${VCA_SRC_ARCHIVE}" "${_DOWNLOAD_DIR_VCA}"
-#	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${_DOWNLOAD_DIR_VCA}/${MODULES_SRC_ARCHIVE}" "${_MODULES_DIR}"
 	[ ${NO_CLEAN} -eq 0 ] && _copy -r "${_DOWNLOAD_DIR_VCA}/VCAC-SW-VCAC-A-R6/modules" "${_MODULES_DIR}/../"
 	# apply modules patch
 	[ ${NO_CLEAN} -eq 0 ] && _extract_tgz "${MODULES_PATCH_ARCHIVE}" "${_MODULES_PATCH_DIR}"
