@@ -661,14 +661,15 @@ install_vcad() {
 		fi
 	fi
          #set git proxy
-        if [ ! $HTTP_PROXY ] ; then
+        if [ -z "${HTTP_PROXY-}" ] ; then
            git_proxy_flag=0
           
         else
            git_proxy_flag=1
-           git_http_proxy=$HTTP_PROXY
-           git_https_proxy=$HTTPS_PROXY
         fi
+        git_https_proxy="${HTTPS_PROXY-}"
+        git_http_proxy="${HTTP_PROXY-}"
+
 	# generate install script
 	_cd ${BUILD_DIR}
 	cat > install_package_in_image.sh <<EOF 
