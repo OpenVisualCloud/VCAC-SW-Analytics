@@ -47,7 +47,7 @@ readonly VCAA_DOCKER_VERSION="1.0"
 
 readonly BOOST_VER="1.65.1"
 readonly BOOST_NAME="boost_1_65_1"
-readonly BOOST_LINK="https://dl.bintray.com/boostorg/release/${BOOST_VER}/source/${BOOST_NAME}.tar.gz"
+readonly BOOST_LINK="https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VER}/source/${BOOST_NAME}.tar.gz"
 
 readonly INITIAL_DEBUG_LEVEL=1
 
